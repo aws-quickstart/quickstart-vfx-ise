@@ -1,0 +1,18 @@
+[
+    {
+        "ParameterKey": "pAvailabilityZoneA",
+        "ParameterValue": "$[taskcat_getsingleaz_1]"
+    },
+    {
+        "ParameterKey": "pAvailabilityZoneB",
+        "ParameterValue": "$[taskcat_getsingleaz_2]"
+    },
+    {
+        "ParameterKey": "pNotifyEmail",
+        "ParameterValue": "distlist@example.org"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "$[taskcat_autobucket]"
+    }
+]
