@@ -1,0 +1,308 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provides configuration for a VFX Render Farm Instances.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Region Configuration
+        Parameters:
+          - pRegionAZ1Name
+          - pRegionAZ2Name
+          - pSupportsEfs
+
+      - Label:
+          default: Network (existing Production VPC config)
+        Parameters:
+          - pProductionVPC
+          - pProdAppPrivateSubnetA
+          - pProdAppPrivateSubnetB
+
+      - Label:
+          default: Render Farm Instance Configuration
+        Parameters:
+          - pRenderFarmAmiId
+          - pMinimumCapacity
+          - pDesiredCapacity
+          - pMaximumCapacity
+
+Parameters:
+  pRegionAZ1Name:
+    Description: Availability Zone 1 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pRegionAZ2Name:
+    Description: Availability Zone 1 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pProductionVPC:
+    Type: AWS::EC2::VPC::Id
+
+  pRenderFarmAmiId:
+    Description: Which AMI do you want to use for Render Instances?
+    Type: AWS::EC2::Image::Id
+
+  pMinimumCapacity:
+    Description: The minimum number of instances that can run in your auto scale group
+    Type: String
+
+  pDesiredCapacity:
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pMaximumCapacity:
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
+
+  pProdAppPrivateSubnetA:
+    Description: Production Application Subnet A (private)
+    Type: AWS::EC2::Subnet::Id
+
+  pProdAppPrivateSubnetB:
+    Description: Production Application Subnet B (private)
+    Type: AWS::EC2::Subnet::Id
+
+  pEnvironment:
+    Description: Environment (Dev, Test or Prod)
+    Type: String
+    Default: DEV
+    AllowedValues:
+      - DEV
+      - TEST
+      - PROD
+
+  pSupportsEfs:
+    Description: Determines if this region supports EFS (passed in from Main template)
+    Type: String
+    AllowedValues:
+      - true
+      - false
+
+Mappings:
+  RegionMap:
+    ap-northeast-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    ap-northeast-2:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    ap-southeast-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    ap-southeast-2:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    ca-central-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    eu-central-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    eu-west-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    eu-west-2:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    sa-east-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    us-east-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    us-east-2:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    us-gov-west-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    us-west-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    us-west-2:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+
+Conditions:
+  SupportsEfs: !Equals
+    - !Ref pSupportsEfs
+    - true
+
+  NoEfsSupport: !Not
+    - Condition: SupportsEfs
+
+Resources:
+  rSecurityGroupRenderFarm:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref pProductionVPC
+      GroupDescription: Render farm security group
+      Tags:
+        - Key: Name
+          Value: render-farm-sg
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  rRenderFarmEfsMountTargetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: SupportsEfs
+    Properties:
+      VpcId: !Ref pProductionVPC
+      GroupDescription: Security group for render farm mount target
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref rSecurityGroupRenderFarm
+      Tags:
+        - Key: Name
+          Value: efs-sg
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  rRenderFarmFileSystem:
+    Type: AWS::EFS::FileSystem
+    Condition: SupportsEfs
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+      FileSystemTags:
+        - Key: Name
+          Value: RenderFarmFs
+
+  rRenderFarmMountTarget0:
+    Type: AWS::EFS::MountTarget
+    Condition: SupportsEfs
+    Properties:
+      FileSystemId: !Ref rRenderFarmFileSystem
+      SubnetId: !Ref pProdAppPrivateSubnetA
+      SecurityGroups:
+        - !Ref rRenderFarmEfsMountTargetSecurityGroup
+
+  rRenderFarmMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Condition: SupportsEfs
+    Properties:
+      FileSystemId: !Ref rRenderFarmFileSystem
+      SubnetId: !Ref pProdAppPrivateSubnetB
+      SecurityGroups:
+        - !Ref rRenderFarmEfsMountTargetSecurityGroup
+
+  rRenderFarmRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+
+  rRenderFarmInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref rRenderFarmRole
+
+  rRenderFarmLaunchTemplateNoEfs:
+    Condition: NoEfsSupport
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref pRenderFarmAmiId
+        IamInstanceProfile:
+          Name: !Ref rRenderFarmInstanceProfile
+        SecurityGroupIds:
+          - !Ref rSecurityGroupRenderFarm
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash -xe
+
+            yum -y --security update
+
+  rRenderFarmLaunchTemplateEfs:
+    Condition: SupportsEfs
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref pRenderFarmAmiId
+        IamInstanceProfile:
+          Name: !Ref rRenderFarmInstanceProfile
+        SecurityGroupIds:
+          - !Ref rSecurityGroupRenderFarm
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+
+            yum -y --security update
+            yum install -y amazon-efs-utils
+
+            # script to wait for EFS file system DNS name to be propagated
+            # as it can take up to 90s
+            cat << EOF > /tmp/dns.sh
+            results=1
+            while [[ \$results != 0 ]]; do
+                nslookup ${rRenderFarmFileSystem}.efs.${AWS::Region}.amazonaws.com
+                results=\$?
+                if [[ \$results = 1 ]]; then
+                    sleep 30s
+                fi
+            done
+            EOF
+
+            chmod 755 /tmp/dns.sh
+            /tmp/dns.sh
+
+            EFS_DIRECTORY=/mnt/efs
+
+            mkdir $EFS_DIRECTORY
+
+            echo "${rRenderFarmFileSystem}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
+            mount -a -t efs defaults
+
+  rRenderFarmAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: !Ref pDesiredCapacity
+      MinSize: !Ref pMinimumCapacity
+      MaxSize: !Ref pMaximumCapacity
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandPercentageAboveBaseCapacity: 0
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
+            Version: 1
+          Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
+      AvailabilityZones:
+        - !Ref pRegionAZ1Name
+        - !Ref pRegionAZ2Name
+      VPCZoneIdentifier:
+        - !Ref pProdAppPrivateSubnetA
+        - !Ref pProdAppPrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: render-farm-instance
+          PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+
+Outputs:
+  rSecurityGroupRenderFarm:
+    Value: !Ref rSecurityGroupRenderFarm
+
+  rRenderFarmMountTarget0:
+    Condition: SupportsEfs
+    Value: !Ref rRenderFarmMountTarget0
+
+  rRenderFarmMountTarget1:
+    Condition: SupportsEfs
+    Value: !Ref rRenderFarmMountTarget1
+
+  rRenderFarmRole:
+    Value: !Ref rRenderFarmRole
+
+  rRenderFarmEfsMountTargetSecurityGroup:
+    Condition: SupportsEfs
+    Value: !Ref rRenderFarmEfsMountTargetSecurityGroup
+
+  rRenderFarmAutoScalingGroup:
+    Value: !Ref rRenderFarmAutoScalingGroup
+
+  rRenderFarmLaunchTemplate:
+    Value: !If
+      - SupportsEfs
+      - !Ref rRenderFarmLaunchTemplateEfs
+      - !Ref rRenderFarmLaunchTemplateNoEfs
