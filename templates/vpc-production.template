@@ -1,0 +1,209 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provides networking configuration for a VFX Production VPC
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Region Config
+        Parameters:
+          - pRegionAZ1Name
+          - pRegionAZ2Name
+
+      - Label:
+          default: Production VPC Config
+        Parameters:
+          - pProductionVPCName
+          - pProductionCIDR
+          - pProdAppPrivateSubnetACIDR
+          - pProdAppPrivateSubnetBCIDR
+
+    ParameterLabels:
+      pProductionVPCName:
+        default: Name of Production VPC
+
+      pProductionCIDR:
+        default: Production VPC CIDR block
+
+      pProdAppPrivateSubnetACIDR:
+        default: CIDR block of Production Application Subnet A (private)
+
+      pProdAppPrivateSubnetBCIDR:
+        default: CIDR block of Production Application Subnet B (private)
+
+Parameters:
+  pRegionAZ1Name:
+    Description: Availability Zone 1 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pRegionAZ2Name:
+    Description: Availability Zone 2 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pProductionVPCName:
+    Description: Production VPC Name
+    Type: String
+    Default: Production-1-VPC
+
+  pProductionCIDR:
+    Description: CIDR block for Production VPC
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Type: String
+    Default: 10.100.0.0/16
+
+  pProdAppPrivateSubnetACIDR:
+    Description: CIDR block of Production Application Subnet A (private)
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Type: String
+    Default: 10.100.96.0/21
+
+  pProdAppPrivateSubnetBCIDR:
+    Description: CIDR block of Production Application Subnet B (private)
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Type: String
+    Default: 10.100.112.0/21
+
+  pEnvironment:
+    Description: Environment (Dev, Test or Prod)
+    Type: String
+    Default: DEV
+    AllowedValues:
+      - DEV
+      - TEST
+      - PROD
+
+Resources:
+  # -- Create VPC -- #
+  rVPCProduction:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref pProductionCIDR
+      InstanceTenancy: default
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref pProductionVPCName
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  # -- Create Private Subnets -- #
+  rProdAppPrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref pProdAppPrivateSubnetACIDR
+      AvailabilityZone: !Ref pRegionAZ1Name
+      VpcId: !Ref rVPCProduction
+      Tags:
+        - Key: Name
+          Value: Production App Subnet A
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  rProdAppPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref pProdAppPrivateSubnetBCIDR
+      AvailabilityZone: !Ref pRegionAZ2Name
+      VpcId: !Ref rVPCProduction
+      Tags:
+        - Key: Name
+          Value: Production App Subnet B
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  # -- Create the Route Table for the Private Subnets -- #
+  rRouteTableProdPrivateA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPCProduction
+      Tags:
+        - Key: Name
+          Value: Production Private Route A
+
+  rRouteTableProdPrivateB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPCProduction
+      Tags:
+        - Key: Name
+          Value: Production Private Route B
+
+  rProdAppPrivateSubnetAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref rRouteTableProdPrivateA
+      SubnetId: !Ref rProdAppPrivateSubnetA
+
+  rProdAppPrivateSubnetAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref rRouteTableProdPrivateB
+      SubnetId: !Ref rProdAppPrivateSubnetB
+
+  # -- Create FlowLogs and CloudWatch Logs Group including Service Role policy. -- #
+  rProdVpcFlowLogsServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowFlowLogs
+            Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: cloudwatchlogsrole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Effect: Allow
+                Resource: '*'
+
+  rProdVpcFlowLogGroup:
+    Type: AWS::Logs::LogGroup
+
+  rProdVpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt rProdVpcFlowLogsServiceRole.Arn
+      LogGroupName: !Ref rProdVpcFlowLogGroup
+      ResourceId: !Ref rVPCProduction
+      ResourceType: VPC
+      TrafficType: ALL
+
+Outputs:
+  rVPCProduction:
+    Value: !Ref rVPCProduction
+
+  pProductionCIDR:
+    Value: !Ref pProductionCIDR
+
+  pProductionVPCName:
+    Value: !Ref pProductionVPCName
+
+  rProdAppPrivateSubnetA:
+    Value: !Ref rProdAppPrivateSubnetA
+
+  rProdAppPrivateSubnetB:
+    Value: !Ref rProdAppPrivateSubnetB
+
+  rRouteTableProdPrivateA:
+    Value: !Ref rRouteTableProdPrivateA
+
+  rRouteTableProdPrivateB:
+    Value: !Ref rRouteTableProdPrivateB
+
+  rProdVpcFlowLogGroup:
+    Value: !Ref rProdVpcFlowLogGroup
