@@ -1,0 +1,205 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provides configuration for a VFX License Server Instance.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Region Configuration
+        Parameters:
+          - pRegionAZ1Name
+          - pRegionAZ2Name
+
+      - Label:
+          default: Network (existing Management VPC config)
+        Parameters:
+          - pManagementVPC
+          - pMgmtAppPrivateSubnetA
+          - pMgmtAppPrivateSubnetB
+
+      - Label:
+          default: License Server Configuration
+        Parameters:
+          - pLicenseServerInstanceType
+          - pLicenseServerAmi
+          - pMinimumCapacity
+          - pDesiredCapacity
+          - pMaximumCapacity
+
+Parameters:
+  pManagementVPC:
+    Description: Management VPC
+    Type: AWS::EC2::VPC::Id
+
+  pMgmtAppPrivateSubnetA:
+    Description: License Server Subnet A
+    Type: AWS::EC2::Subnet::Id
+
+  pMgmtAppPrivateSubnetB:
+    Description: Licene Server Subnet B
+    Type: AWS::EC2::Subnet::Id
+
+  pLicenseServerInstanceType:
+    Description: Instance type for the license server
+    Type: String
+
+  pRegionAZ1Name:
+    Description: Availability Zone 1 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pRegionAZ2Name:
+    Description: Availability Zone 1 Name in Region
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pLicenseServerAmi:
+    Description: Which License Server AMI do you want to use?
+    Type: AWS::EC2::Image::Id
+
+  pMinimumCapacity:
+    Description: The minimum number of instances that can run in your auto scale group
+    Type: String
+
+  pDesiredCapacity:
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pMaximumCapacity:
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
+
+  pEnvironment:
+    Description: Environment (Dev, Test or Prod)
+    Type: String
+    Default: DEV
+    AllowedValues:
+      - DEV
+      - TEST
+      - PROD
+
+Resources:
+  rSecurityGroupLicenseServer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for License server Instances
+      VpcId: !Ref pManagementVPC
+      Tags:
+        - Key: Name
+          Value: license-server-sg
+        - Key: Environment
+          Value: !Ref pEnvironment
+
+  rLicenseServerInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+        - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+
+  rLicenseServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref rLicenseServerInstanceRole
+
+  rAutoScalingConfigLicenseServer:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: false
+      ImageId: !Ref pLicenseServerAmi
+      IamInstanceProfile: !Ref rLicenseServerInstanceProfile
+      InstanceType: !Ref pLicenseServerInstanceType
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvdh
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp2
+            Encrypted: true
+      SecurityGroups:
+        - !Ref rSecurityGroupLicenseServer
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum -y --security update
+          yum update -y aws-cfn-bootstrap
+
+          # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
+          #
+          # Make sure both volumes have been created AND attached to this instance !
+          #
+          # We do not need a loop counter in the "until" statements below because
+          # there is a 5 minute limit on the CreationPolicy for this EC2 instance already.
+
+          EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+
+          DATA_STATE="unknown"
+          until [ "${!DATA_STATE}" == "attached" ]; do
+            DATA_STATE=$(aws ec2 describe-volumes \
+              --region ${AWS::Region} \
+              --filters \
+                Name=attachment.instance-id,Values=${!EC2_INSTANCE_ID} \
+                Name=attachment.device,Values=/dev/xvdh \
+              --query Volumes[].Attachments[].State \
+              --output text)
+            sleep 5
+          done
+
+          # Format /dev/sdh if it does not contain a partition yet
+          if [ "$(file -b -s /dev/xvdh)" == "data" ]; then
+            mkfs -t ext4 /dev/xvdh
+          fi
+
+          mkdir -p /data
+          mount /dev/xvdh /data
+
+          # Persist the volume in /etc/fstab so it gets mounted again
+          echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
+
+  rAutoScalingGroupLicenseServer:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - !Ref pRegionAZ1Name
+        - !Ref pRegionAZ2Name
+      VPCZoneIdentifier:
+        - !Ref pMgmtAppPrivateSubnetA
+        - !Ref pMgmtAppPrivateSubnetB
+      LaunchConfigurationName: !Ref rAutoScalingConfigLicenseServer
+      MinSize: !Ref pMinimumCapacity
+      DesiredCapacity: !Ref pDesiredCapacity
+      MaxSize: !Ref pMaximumCapacity
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 0
+      Tags:
+        - Key: Name
+          Value: vfx-license-server
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: !Ref pEnvironment
+          PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+
+Outputs:
+  rSecurityGroupLicenseServer:
+    Value: !Ref rSecurityGroupLicenseServer
+
+  rLicenseServerInstanceRole:
+    Value: !Ref rLicenseServerInstanceRole
+
+  rAutoScalingGroupLicenseServer:
+    Value: !Ref rAutoScalingGroupLicenseServer
+
+  rAutoScalingConfigLicenseServer:
+    Value: !Ref rAutoScalingConfigLicenseServer
