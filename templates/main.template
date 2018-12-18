@@ -1,0 +1,303 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provides nesting for required VFX stacks to deploy a full sample render application
+  (for demonstration/POC/testing)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Availability Zone Configuration
+        Parameters:
+          - pAvailabilityZoneA
+          - pAvailabilityZoneB
+
+      - Label:
+          default: EC2 Instance configuration
+        Parameters:
+          - pRenderFarmAmiId
+          - pRenderSchedulerAmi
+          - pLicenseServerAmi
+
+      - Label:
+          default: Please provide the following parameter values
+        Parameters:
+          - pNotifyEmail
+          - pEnvironment
+
+      - Label:
+          default: Quickstart Template Configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+
+    ParameterLabels:
+      pAvailabilityZoneA:
+        default: First Availability Zone
+
+      pAvailabilityZoneB:
+        default: Second Availability zone
+
+      pNotifyEmail:
+        default: Notification Email Address
+
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+
+Parameters:
+  pAvailabilityZoneA:
+    Description: Availability Zone 1
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pAvailabilityZoneB:
+    Description: Availability Zone 2
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  pNotifyEmail:
+    Description: Notification email address for security events (you will receive
+      a confirmation email)
+    Type: String
+    Default: distlist@example.org
+
+  pRenderFarmAmiId:
+    Description: The AMI for the Render Farm EC2 instances
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  pLicenseServerAmi:
+    Description: The AMI for the License Server EC2 instance
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  pRenderSchedulerAmi:
+    Description: The AMI for the Render Scheduler EC2 instance
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  pEnvironment:
+    Description: Environment (Dev, Test or Prod)
+    Type: String
+    Default: DEV
+    AllowedValues:
+      - DEV
+      - TEST
+      - PROD
+
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, periods (.), and hyphens (-). It cannot start or
+      end with a hyphen (-).
+    Default: quickstart-render-compliance-is-s3artifactsbucket-1d7ta8294b64d
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-vfx-ise/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+
+Mappings:
+  RegionServiceSupport:
+    ap-northeast-1:
+      EFS: 'true'
+    ap-northeast-2:
+      EFS: 'true'
+    ap-northeast-3:
+      EFS: 'false'
+    ap-south-1:
+      EFS: 'false'
+    ap-southeast-1:
+      EFS: 'true'
+    ap-southeast-2:
+      EFS: 'true'
+    ca-central-1:
+      EFS: 'false'
+    eu-central-1:
+      EFS: 'true'
+    eu-west-1:
+      EFS: 'true'
+    eu-west-2:
+      EFS: 'false'
+    eu-north-1:
+      EFS: 'false'
+    eu-west-3:
+      EFS: 'false'
+    sa-east-1:
+      EFS: 'false'
+    us-east-1:
+      EFS: 'true'
+    us-east-2:
+      EFS: 'true'
+    us-west-1:
+      EFS: 'true'
+    us-west-2:
+      EFS: 'true'
+
+Resources:
+  IamTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/iam.template
+      TimeoutInMinutes: 20
+
+  LoggingTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/logging.template
+      TimeoutInMinutes: 20
+      Parameters:
+        pNotifyEmail: !Ref pNotifyEmail
+
+  ProductionVpcTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-production.template
+      TimeoutInMinutes: 20
+      Parameters:
+        pRegionAZ1Name: !Ref pAvailabilityZoneA
+        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pProductionVPCName: Production-1-VPC
+        pProductionCIDR: 10.100.0.0/16
+        pProdAppPrivateSubnetACIDR: 10.100.96.0/21
+        pProdAppPrivateSubnetBCIDR: 10.100.112.0/21
+        pEnvironment: !Ref pEnvironment
+
+  ManagementVpcTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-management.template
+      TimeoutInMinutes: 20
+      Parameters:
+        pRegionAZ1Name: !Ref pAvailabilityZoneA
+        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pManagementVPCName: Management-VPC
+        pManagementCIDR: 10.10.0.0/16
+        pManagementDMZSubnetACIDR: 10.10.10.0/24
+        pManagementDMZSubnetBCIDR: 10.10.20.0/24
+        pMgmtAppPrivateSubnetACIDR: 10.10.96.0/21
+        pMgmtAppPrivateSubnetBCIDR: 10.10.112.0/21
+        pEnvironment: !Ref pEnvironment
+
+  PeeringConnectionTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-peering.template
+      TimeoutInMinutes: 20
+      Parameters:
+        pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
+        pProductionVPCName: !GetAtt ProductionVpcTemplate.Outputs.pProductionVPCName
+        pProductionCIDR: !GetAtt ProductionVpcTemplate.Outputs.pProductionCIDR
+        pRouteTableProdPrivateA: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateA
+        pRouteTableProdPrivateB: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateB
+        pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
+        pManagementCIDR: !GetAtt ManagementVpcTemplate.Outputs.pManagementCIDR
+        pRouteTableMgmtPrivateA: !GetAtt ManagementVpcTemplate.Outputs.rRouteTableMgmtPrivateA
+        pRouteTableMgmtPrivateB: !GetAtt ManagementVpcTemplate.Outputs.rRouteTableMgmtPrivateB
+        pEnvironment: !Ref pEnvironment
+
+  VpcEndpointsTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-endpoints.template
+      TimeoutInMinutes: 20
+      Parameters:
+        pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
+        pProductionCIDR: 10.100.0.0/16
+        pRouteTableProdPrivateA: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateA
+        pRouteTableProdPrivateB: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateB
+        pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
+        pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
+
+  RenderFarmTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/render-farm.template
+      TimeoutInMinutes: 30
+      Parameters:
+        pSupportsEfs: !FindInMap
+          - RegionServiceSupport
+          - !Ref AWS::Region
+          - EFS
+        pRegionAZ1Name: !Ref pAvailabilityZoneA
+        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
+        pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
+        pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
+        pRenderFarmAmiId: !Ref pRenderFarmAmiId
+        pMinimumCapacity: '1'
+        pDesiredCapacity: '2'
+        pMaximumCapacity: '5'
+        pEnvironment: !Ref pEnvironment
+
+  LicenseServerTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/license-server.template
+      TimeoutInMinutes: 30
+      Parameters:
+        pRegionAZ1Name: !Ref pAvailabilityZoneA
+        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
+        pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
+        pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
+        pLicenseServerInstanceType: t2.micro
+        pLicenseServerAmi: !Ref pLicenseServerAmi
+        pMinimumCapacity: '1'
+        pDesiredCapacity: '1'
+        pMaximumCapacity: '1'
+        pEnvironment: !Ref pEnvironment
+
+  RenderSchedulerTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/render-scheduler.template
+      TimeoutInMinutes: 30
+      Parameters:
+        pRegionAZ1Name: !Ref pAvailabilityZoneA
+        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
+        pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
+        pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
+        pRenderSchedulerInstanceType: t2.micro
+        pRenderSchedulerAmi: !Ref pRenderSchedulerAmi
+        pMinimumCapacity: '1'
+        pDesiredCapacity: '1'
+        pMaximumCapacity: '1'
+        pEnvironment: !Ref pEnvironment
+
+  SecurityGroupsHelperTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/security-groups-helper.template
+      TimeoutInMinutes: 30
+      Parameters:
+        pSecurityGroupLicenseServer: !GetAtt LicenseServerTemplate.Outputs.rSecurityGroupLicenseServer
+        pSecurityGroupRenderScheduler: !GetAtt RenderSchedulerTemplate.Outputs.rSecurityGroupRenderScheduler
+        pSecurityGroupRenderFarm: !GetAtt RenderFarmTemplate.Outputs.rSecurityGroupRenderFarm
+
+Outputs:
+  TemplateType:
+    Value: Standard VFX Render Architecture
+
+  TemplateVersion:
+    Value: 1.0
