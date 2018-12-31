@@ -143,6 +143,18 @@ Mappings:
     us-west-2:
       EFS: 'true'
 
+Rules:
+  VfxSupportRegionRule:
+    Assertions:
+      - Assert:
+          !Not
+          - Fn::Contains:
+            - - ap-south-1
+            - !Ref AWS::Region
+        AssertDescription: This Quick Start utilizes T3 intance type, which is not avalible in the
+          Asia Pacific (Mumbai) region (January 2019). Please launch the stack in one of the supported
+          regions to continue (https://aws.amazon.com/ec2/pricing/on-demand/)
+
 Resources:
   IamTemplate:
     Type: AWS::CloudFormation::Stack

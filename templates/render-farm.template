@@ -84,6 +84,8 @@ Mappings:
       InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
     ap-northeast-2:
       InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+    ap-south-1:
+      InstanceTypes: [InstanceType: t2.micro, InstanceType: t2.small]
     ap-southeast-1:
       InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
     ap-southeast-2:
