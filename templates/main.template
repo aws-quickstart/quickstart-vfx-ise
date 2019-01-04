@@ -6,20 +6,51 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Availability Zone Configuration
+          default: Region Configuration
         Parameters:
-          - pAvailabilityZoneA
-          - pAvailabilityZoneB
+          - pAvailabilityZones
 
       - Label:
-          default: EC2 Instance configuration
+          default: Production VPC Network Configuration
         Parameters:
-          - pRenderFarmAmiId
-          - pRenderSchedulerAmi
+          - pProductionVpcCIDR
+          - pProdAppPrivateSubnetACIDR
+          - pProdAppPrivateSubnetBCIDR
+
+      - Label:
+          default: Management VPC Network Configuration
+        Parameters:
+          - pManagementVpcCIDR
+          - pManagementDMZSubnetACIDR
+          - pManagementDMZSubnetBCIDR
+          - pMgmtAppPrivateSubnetACIDR
+          - pMgmtAppPrivateSubnetBCIDR
+
+      - Label:
+          default: Render Farm Instance Configuration
+        Parameters:
+          - pRenderFarmAmi
+          - pRenderFarmDesiredCapacity
+          - pRenderFarmMaxCapacity
+
+      - Label:
+          default: License Server Configuration
+        Parameters:
+          - pLicenseServerInstanceType
           - pLicenseServerAmi
+          - pLicenseServerDesiredCapacity
+          - pLicenseServerMaxCapacity
 
       - Label:
-          default: Please provide the following parameter values
+          default: Render Scheduler Configuration
+        Parameters:
+          - pRenderSchedulerInstanceType
+          - pRenderSchedulerAmi
+          - pSchedulerDesiredCapacity
+          - pSchedulerMaxCapacity
+
+      - Label:
+          default: Email and Environment Configuration
         Parameters:
           - pNotifyEmail
           - pEnvironment
@@ -31,11 +62,32 @@ Metadata:
           - QSS3KeyPrefix
 
     ParameterLabels:
-      pAvailabilityZoneA:
-        default: First Availability Zone
+      pAvailabilityZones:
+        default: Select two Availability Zones
 
-      pAvailabilityZoneB:
-        default: Second Availability zone
+      pProductionVpcCIDR:
+        default: Production VPC CIDR block
+
+      pProdAppPrivateSubnetACIDR:
+        default: CIDR block of Production Application Subnet A (private)
+
+      pProdAppPrivateSubnetBCIDR:
+        default: CIDR block of Production Application Subnet B (private)
+
+      pManagementVpcCIDR:
+        default: Management VPC CIDR block
+
+      pManagementDMZSubnetACIDR:
+        default: CIDR block of Management DMZ Subnet A (internet facing)
+
+      pManagementDMZSubnetBCIDR:
+        default: CIDR block of Management DMZ Subnet B (internet facing)
+
+      pMgmtAppPrivateSubnetACIDR:
+        default: CIDR block of Management Application Subnet A (private)
+
+      pMgmtAppPrivateSubnetBCIDR:
+        default: CIDR block of Management Application Subnet B (private)
 
       pNotifyEmail:
         default: Notification Email Address
@@ -47,43 +99,136 @@ Metadata:
         default: Quick Start S3 Key Prefix
 
 Parameters:
-  pAvailabilityZoneA:
-    Description: Availability Zone 1
-    Type: AWS::EC2::AvailabilityZone::Name
+  pAvailabilityZones:
+    Description: The list of Availability Zones to use for the subnets in the VPC.
+      The Quick Start uses two Availability Zones from your list and preserves the logical order you specify.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
 
-  pAvailabilityZoneB:
-    Description: Availability Zone 2
-    Type: AWS::EC2::AvailabilityZone::Name
+  pProductionVpcCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.100.0.0/16
+    Description: CIDR block for Production VPC
+    Type: String
+
+  pProdAppPrivateSubnetACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.100.0.0/19
+    Description: CIDR block of Production Application Subnet A (private)
+    Type: String
+
+  pProdAppPrivateSubnetBCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.100.32.0/19
+    Description: CIDR block of Production Application Subnet B (private)
+    Type: String
+
+  pManagementVpcCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.10.0.0/16
+    Description: CIDR block for Management VPC
+    Type: String
+
+  pManagementDMZSubnetACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.10.10.0/24
+    Description: CIDR block for Management DMZ AZ-1a subnet
+    Type: String
+
+  pManagementDMZSubnetBCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.10.20.0/24
+    Description: CIDR block for Management DMZ AZ-1b subnet
+    Type: String
+
+  pMgmtAppPrivateSubnetACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.10.96.0/21
+    Description: CIDR block for Management Application AZ-1a subnet
+    Type: String
+
+  pMgmtAppPrivateSubnetBCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.10.112.0/21
+    Description: CIDR block for Management Application AZ-1b subnet
+    Type: String
+
+  pRenderFarmAmi:
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: The AMI for the Render Farm EC2 instances
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+  pRenderFarmDesiredCapacity:
+    Default: 2
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pRenderFarmMaxCapacity:
+    Default: 6
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
+
+  pLicenseServerInstanceType:
+    Default: t2.micro
+    Description: Instance type for the license server
+    Type: String
+
+  pLicenseServerAmi:
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: The AMI for the License Server EC2 instance
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+  pLicenseServerDesiredCapacity:
+    Default: 1
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pLicenseServerMaxCapacity:
+    Default: 1
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
+
+  pRenderSchedulerInstanceType:
+    Default: t2.micro
+    Description: Instance type for the Render Scheduler
+    Type: String
+
+  pRenderSchedulerAmi:
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: The AMI for the Render Scheduler EC2 instance
+    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+  pSchedulerDesiredCapacity:
+    Default: 1
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pSchedulerMaxCapacity:
+    Default: 1
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
 
   pNotifyEmail:
+    Default: ''
     Description: Notification email address for security events (you will receive
       a confirmation email)
     Type: String
-    Default: distlist@example.org
-
-  pRenderFarmAmiId:
-    Description: The AMI for the Render Farm EC2 instances
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-
-  pLicenseServerAmi:
-    Description: The AMI for the License Server EC2 instance
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-
-  pRenderSchedulerAmi:
-    Description: The AMI for the Render Scheduler EC2 instance
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
   pEnvironment:
-    Description: Environment (Dev, Test or Prod)
-    Type: String
-    Default: DEV
     AllowedValues:
       - DEV
       - TEST
       - PROD
+    Default: DEV
+    Description: Environment (Dev, Test or Prod)
+    Type: String
 
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
@@ -151,7 +296,7 @@ Rules:
           - Fn::Contains:
             - - ap-south-1
             - !Ref AWS::Region
-        AssertDescription: This Quick Start utilizes T3 intance type, which is not avalible in the
+        AssertDescription: This Quick Start utilizes T3 intance type, which is not available in the
           Asia Pacific (Mumbai) region (January 2019). Please launch the stack in one of the supported
           regions to continue (https://aws.amazon.com/ec2/pricing/on-demand/)
 
@@ -179,12 +324,14 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-production.template
       TimeoutInMinutes: 20
       Parameters:
-        pRegionAZ1Name: !Ref pAvailabilityZoneA
-        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pProductionVPCName: Production-1-VPC
-        pProductionCIDR: 10.100.0.0/16
-        pProdAppPrivateSubnetACIDR: 10.100.96.0/21
-        pProdAppPrivateSubnetBCIDR: 10.100.112.0/21
+        pProductionVpcCIDR: !Ref pProductionVpcCIDR
+        pProdAppPrivateSubnetACIDR: !Ref pProdAppPrivateSubnetACIDR
+        pProdAppPrivateSubnetBCIDR: !Ref pProdAppPrivateSubnetBCIDR
         pEnvironment: !Ref pEnvironment
 
   ManagementVpcTemplate:
@@ -194,14 +341,16 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/vpc-management.template
       TimeoutInMinutes: 20
       Parameters:
-        pRegionAZ1Name: !Ref pAvailabilityZoneA
-        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pManagementVPCName: Management-VPC
-        pManagementCIDR: 10.10.0.0/16
-        pManagementDMZSubnetACIDR: 10.10.10.0/24
-        pManagementDMZSubnetBCIDR: 10.10.20.0/24
-        pMgmtAppPrivateSubnetACIDR: 10.10.96.0/21
-        pMgmtAppPrivateSubnetBCIDR: 10.10.112.0/21
+        pManagementVpcCIDR: !Ref pManagementVpcCIDR
+        pManagementDMZSubnetACIDR: !Ref pManagementDMZSubnetACIDR
+        pManagementDMZSubnetBCIDR: !Ref pManagementDMZSubnetBCIDR
+        pMgmtAppPrivateSubnetACIDR: !Ref pMgmtAppPrivateSubnetACIDR
+        pMgmtAppPrivateSubnetBCIDR: !Ref pMgmtAppPrivateSubnetBCIDR
         pEnvironment: !Ref pEnvironment
 
   PeeringConnectionTemplate:
@@ -212,12 +361,11 @@ Resources:
       TimeoutInMinutes: 20
       Parameters:
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
-        pProductionVPCName: !GetAtt ProductionVpcTemplate.Outputs.pProductionVPCName
-        pProductionCIDR: !GetAtt ProductionVpcTemplate.Outputs.pProductionCIDR
+        pProductionVpcCIDR: !GetAtt ProductionVpcTemplate.Outputs.pProductionVpcCIDR
         pRouteTableProdPrivateA: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateA
         pRouteTableProdPrivateB: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateB
         pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
-        pManagementCIDR: !GetAtt ManagementVpcTemplate.Outputs.pManagementCIDR
+        pManagementVpcCIDR: !GetAtt ManagementVpcTemplate.Outputs.pManagementVpcCIDR
         pRouteTableMgmtPrivateA: !GetAtt ManagementVpcTemplate.Outputs.rRouteTableMgmtPrivateA
         pRouteTableMgmtPrivateB: !GetAtt ManagementVpcTemplate.Outputs.rRouteTableMgmtPrivateB
         pEnvironment: !Ref pEnvironment
@@ -230,7 +378,7 @@ Resources:
       TimeoutInMinutes: 20
       Parameters:
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
-        pProductionCIDR: 10.100.0.0/16
+        pProductionVpcCIDR: !Ref pProductionVpcCIDR
         pRouteTableProdPrivateA: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateA
         pRouteTableProdPrivateB: !GetAtt ProductionVpcTemplate.Outputs.rRouteTableProdPrivateB
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
@@ -247,15 +395,17 @@ Resources:
           - RegionServiceSupport
           - !Ref AWS::Region
           - EFS
-        pRegionAZ1Name: !Ref pAvailabilityZoneA
-        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
-        pRenderFarmAmiId: !Ref pRenderFarmAmiId
-        pMinimumCapacity: '1'
-        pDesiredCapacity: '2'
-        pMaximumCapacity: '5'
+        pRenderFarmAmi: !Ref pRenderFarmAmi
+        pRenderFarmMinCapacity: '1'
+        pRenderFarmDesiredCapacity: !Ref pRenderFarmDesiredCapacity
+        pRenderFarmMaxCapacity: !Ref pRenderFarmMaxCapacity
         pEnvironment: !Ref pEnvironment
 
   LicenseServerTemplate:
@@ -265,16 +415,18 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/license-server.template
       TimeoutInMinutes: 30
       Parameters:
-        pRegionAZ1Name: !Ref pAvailabilityZoneA
-        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
         pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
         pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
-        pLicenseServerInstanceType: t2.micro
+        pLicenseServerInstanceType: !Ref pLicenseServerInstanceType
         pLicenseServerAmi: !Ref pLicenseServerAmi
-        pMinimumCapacity: '1'
-        pDesiredCapacity: '1'
-        pMaximumCapacity: '1'
+        pLicenseServerMinCapacity: '1'
+        pLicenseServerDesiredCapacity: !Ref pLicenseServerDesiredCapacity
+        pLicenseServerMaxCapacity: !Ref pLicenseServerMaxCapacity
         pEnvironment: !Ref pEnvironment
 
   RenderSchedulerTemplate:
@@ -284,16 +436,18 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/render-scheduler.template
       TimeoutInMinutes: 30
       Parameters:
-        pRegionAZ1Name: !Ref pAvailabilityZoneA
-        pRegionAZ2Name: !Ref pAvailabilityZoneB
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
         pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
         pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
-        pRenderSchedulerInstanceType: t2.micro
+        pRenderSchedulerInstanceType: !Ref pRenderSchedulerInstanceType
         pRenderSchedulerAmi: !Ref pRenderSchedulerAmi
-        pMinimumCapacity: '1'
-        pDesiredCapacity: '1'
-        pMaximumCapacity: '1'
+        pSchedulerMinCapacity: '1'
+        pSchedulerDesiredCapacity: !Ref pSchedulerDesiredCapacity
+        pSchedulerMaxCapacity: !Ref pSchedulerMaxCapacity
         pEnvironment: !Ref pEnvironment
 
   SecurityGroupsHelperTemplate:
@@ -303,13 +457,16 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/security-groups-helper.template
       TimeoutInMinutes: 30
       Parameters:
-        pSecurityGroupLicenseServer: !GetAtt LicenseServerTemplate.Outputs.rSecurityGroupLicenseServer
-        pSecurityGroupRenderScheduler: !GetAtt RenderSchedulerTemplate.Outputs.rSecurityGroupRenderScheduler
-        pSecurityGroupRenderFarm: !GetAtt RenderFarmTemplate.Outputs.rSecurityGroupRenderFarm
+        pLicenseServerSecurityGroup: !GetAtt LicenseServerTemplate.Outputs.rLicenseServerSecurityGroup
+        pRenderSchedulerSecurityGroup: !GetAtt RenderSchedulerTemplate.Outputs.rRenderSchedulerSecurityGroup
+        pRenderFarmSecurityGroup: !GetAtt RenderFarmTemplate.Outputs.rRenderFarmSecurityGroup
 
 Outputs:
   TemplateType:
-    Value: Standard VFX Render Architecture
+    Value: Standard VFX Burst Render Architecture
 
   TemplateVersion:
     Value: 1.0
+
+  rCloudTrailBucket:
+    Value: !GetAtt LoggingTemplate.Outputs.rCloudTrailBucket
