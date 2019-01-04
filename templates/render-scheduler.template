@@ -5,10 +5,9 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Region Config
+          default: Region Configuration
         Parameters:
-          - pRegionAZ1Name
-          - pRegionAZ2Name
+          - pAvailabilityZones
 
       - Label:
           default: Network (existing Management VPC config)
@@ -22,11 +21,16 @@ Metadata:
         Parameters:
           - pRenderSchedulerInstanceType
           - pRenderSchedulerAmi
-          - pMinimumCapacity
-          - pDesiredCapacity
-          - pMaximumCapacity
+          - pSchedulerMinCapacity
+          - pSchedulerDesiredCapacity
+          - pSchedulerMaxCapacity
 
 Parameters:
+  pAvailabilityZones:
+    Description: The list of Availability Zones to use for the subnets in the VPC.
+      This template uses two Availability Zones from your list and preserves the logical order you specify.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+
   pManagementVPC:
     Description: Management VPC
     Type: AWS::EC2::VPC::Id
@@ -43,41 +47,33 @@ Parameters:
     Description: Instance type for the Render Scheduler
     Type: String
 
-  pRegionAZ1Name:
-    Description: Availability Zone 1 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
-
-  pRegionAZ2Name:
-    Description: Availability Zone 1 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
-
   pRenderSchedulerAmi:
     Description: Which Render Scheduler AMI do you want to use?
     Type: AWS::EC2::Image::Id
 
-  pMinimumCapacity:
+  pSchedulerMinCapacity:
     Description: The minimum number of instances that can run in your auto scale group
     Type: String
 
-  pDesiredCapacity:
+  pSchedulerDesiredCapacity:
     Description: The desired capacity must be less than or equal to the maximum capacity
     Type: String
 
-  pMaximumCapacity:
+  pSchedulerMaxCapacity:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
 
   pEnvironment:
-    Description: Environment (Dev, Test or Prod)
-    Type: String
-    Default: DEV
     AllowedValues:
       - DEV
       - TEST
       - PROD
+    Default: DEV
+    Description: Environment (Dev, Test or Prod)
+    Type: String
 
 Resources:
-  rSecurityGroupRenderScheduler:
+  rRenderSchedulerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for Render Scheduler Instances
@@ -112,72 +108,78 @@ Resources:
       Roles:
         - !Ref rRenderSchedulerInstanceRole
 
-  rAutoScalingConfigRenderScheduler:
+  rRenderSchedulerAutoScalingConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            1_check_data:
+              command: !Sub |
+                #!/bin/bash -xe
+                EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+
+                # Volume /dev/sdh (which will get created as /dev/xvdh on Amazon Linux)
+                DATA_STATE="unknown"
+                until [ "${!DATA_STATE}" == "attached" ]; do
+                  DATA_STATE=$(aws ec2 describe-volumes \
+                    --region ${AWS::Region} \
+                    --filters \
+                      Name=attachment.instance-id,Values=${!EC2_INSTANCE_ID} \
+                      Name=attachment.device,Values=/dev/sdh \
+                    --query Volumes[].Attachments[].State \
+                    --output text)
+                  sleep 5
+                done
+            2_mkfs:
+              command: |
+                #!/bin/bash -xe
+                # Format /dev/xvdh if it does not contain a partition yet
+                if [ "$(file -b -s /dev/xvdh)" == "data" ];
+                  then mkfs -t ext4 /dev/xvdh
+                fi
+            3_mkdir:
+              command: mkdir -p /data
+            4_mount:
+              command: mount /dev/xvdh /data
+            5_fstab:
+              command: echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
     Properties:
       AssociatePublicIpAddress: false
       ImageId: !Ref pRenderSchedulerAmi
       IamInstanceProfile: !Ref rRenderSchedulerInstanceProfile
       InstanceType: !Ref pRenderSchedulerInstanceType
       BlockDeviceMappings:
-        - DeviceName: /dev/xvdh
+        - DeviceName: /dev/sdh
           Ebs:
             VolumeSize: 10
             VolumeType: gp2
             Encrypted: true
       SecurityGroups:
-        - !Ref rSecurityGroupRenderScheduler
+        - !Ref rRenderSchedulerSecurityGroup
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          yum -y --security update
-          yum update -y aws-cfn-bootstrap
+          yum update --security -y
+          yum update aws-cfn-bootstrap -y
 
-          # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html
-          #
-          # Make sure both volumes have been created AND attached to this instance !
-          #
-          # We do not need a loop counter in the "until" statements below because
-          # there is a 5 minute limit on the CreationPolicy for this EC2 instance already.
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderSchedulerAutoScalingConfig --region ${AWS::Region}
+          # Signal the status from cfn-init
+          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderSchedulerAutoScalingConfig --region ${AWS::Region}
 
-          EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
-
-          DATA_STATE="unknown"
-          until [ "${!DATA_STATE}" == "attached" ]; do
-            DATA_STATE=$(aws ec2 describe-volumes \
-              --region ${AWS::Region} \
-              --filters \
-                Name=attachment.instance-id,Values=${!EC2_INSTANCE_ID} \
-                Name=attachment.device,Values=/dev/xvdh \
-              --query Volumes[].Attachments[].State \
-              --output text)
-            sleep 5
-          done
-
-          # Format /dev/sdh if it does not contain a partition yet
-          if [ "$(file -b -s /dev/xvdh)" == "data" ]; then
-            mkfs -t ext4 /dev/xvdh
-          fi
-
-          mkdir -p /data
-          mount /dev/xvdh /data
-
-          # Persist the volume in /etc/fstab so it gets mounted again
-          echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
-
-  rAutoScalingGroupRenderScheduler:
+  rRenderSchedulerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       AvailabilityZones:
-        - !Ref pRegionAZ1Name
-        - !Ref pRegionAZ2Name
+        - !Select [0, !Ref pAvailabilityZones]
+        - !Select [1, !Ref pAvailabilityZones]
       VPCZoneIdentifier:
         - !Ref pMgmtAppPrivateSubnetA
         - !Ref pMgmtAppPrivateSubnetB
-      LaunchConfigurationName: !Ref rAutoScalingConfigRenderScheduler
-      MinSize: !Ref pMinimumCapacity
-      DesiredCapacity: !Ref pDesiredCapacity
-      MaxSize: !Ref pMaximumCapacity
+      LaunchConfigurationName: !Ref rRenderSchedulerAutoScalingConfig
+      MinSize: !Ref pSchedulerMinCapacity
+      DesiredCapacity: !Ref pSchedulerDesiredCapacity
+      MaxSize: !Ref pSchedulerMaxCapacity
       HealthCheckType: EC2
       HealthCheckGracePeriod: 0
       Tags:
@@ -192,14 +194,14 @@ Resources:
         WillReplace: true
 
 Outputs:
-  rSecurityGroupRenderScheduler:
-    Value: !Ref rSecurityGroupRenderScheduler
+  rRenderSchedulerSecurityGroup:
+    Value: !Ref rRenderSchedulerSecurityGroup
 
-  rAutoScalingConfigRenderScheduler:
-    Value: !Ref rAutoScalingConfigRenderScheduler
+  rRenderSchedulerAutoScalingConfig:
+    Value: !Ref rRenderSchedulerAutoScalingConfig
 
-  rAutoScalingGroupRenderScheduler:
-    Value: !Ref rAutoScalingGroupRenderScheduler
+  rRenderSchedulerAutoScalingGroup:
+    Value: !Ref rRenderSchedulerAutoScalingGroup
 
   rRenderSchedulerInstanceRole:
     Value: !Ref rRenderSchedulerInstanceRole

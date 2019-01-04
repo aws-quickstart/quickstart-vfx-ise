@@ -2,15 +2,15 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Provides cross-reference of Security Groups in the ingress and egress rules.
 Parameters:
-  pSecurityGroupLicenseServer:
+  pLicenseServerSecurityGroup:
     Description: License server Security Group ID
     Type: AWS::EC2::SecurityGroup::Id
 
-  pSecurityGroupRenderScheduler:
+  pRenderSchedulerSecurityGroup:
     Description: Render Scheduler Security Group ID
     Type: AWS::EC2::SecurityGroup::Id
 
-  pSecurityGroupRenderFarm:
+  pRenderFarmSecurityGroup:
     Description: Render Farm Security Group ID
     Type: AWS::EC2::SecurityGroup::Id
 
@@ -18,31 +18,31 @@ Resources:
   rRenderSchedulerToLicenseServerIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref pSecurityGroupLicenseServer
+      GroupId: !Ref pLicenseServerSecurityGroup
       Description: render-scheduler-sg
       IpProtocol: '-1'
-      SourceSecurityGroupId: !Ref pSecurityGroupRenderScheduler
+      SourceSecurityGroupId: !Ref pRenderSchedulerSecurityGroup
 
   rRenderFarmToLicenseServerIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref pSecurityGroupLicenseServer
+      GroupId: !Ref pLicenseServerSecurityGroup
       Description: render-farm-sg
       IpProtocol: '-1'
-      SourceSecurityGroupId: !Ref pSecurityGroupRenderFarm
+      SourceSecurityGroupId: !Ref pRenderFarmSecurityGroup
 
   rRenderSchedulerToRenderFarmIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref pSecurityGroupRenderFarm
+      GroupId: !Ref pRenderFarmSecurityGroup
       Description: render-scheduler-sg
       IpProtocol: '-1'
-      SourceSecurityGroupId: !Ref pSecurityGroupRenderScheduler
+      SourceSecurityGroupId: !Ref pRenderSchedulerSecurityGroup
 
   rRenderFarmToRenderSchedulerIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref pSecurityGroupRenderScheduler
+      GroupId: !Ref pRenderSchedulerSecurityGroup
       Description: render-farm-sg
       IpProtocol: '-1'
-      SourceSecurityGroupId: !Ref pSecurityGroupRenderFarm
+      SourceSecurityGroupId: !Ref pRenderFarmSecurityGroup

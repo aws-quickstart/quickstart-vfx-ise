@@ -7,8 +7,7 @@ Metadata:
       - Label:
           default: Region Configuration
         Parameters:
-          - pRegionAZ1Name
-          - pRegionAZ2Name
+          - pAvailabilityZones
           - pSupportsEfs
 
       - Label:
@@ -21,38 +20,26 @@ Metadata:
       - Label:
           default: Render Farm Instance Configuration
         Parameters:
-          - pRenderFarmAmiId
-          - pMinimumCapacity
-          - pDesiredCapacity
-          - pMaximumCapacity
+          - pRenderFarmAmi
+          - pRenderFarmMinCapacity
+          - pRenderFarmDesiredCapacity
+          - pRenderFarmMaxCapacity
 
 Parameters:
-  pRegionAZ1Name:
-    Description: Availability Zone 1 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
+  pAvailabilityZones:
+    Description: The list of Availability Zones to use for the subnets in the VPC.
+      This template uses two Availability Zones from your list and preserves the logical order you specify.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
 
-  pRegionAZ2Name:
-    Description: Availability Zone 1 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
+  pSupportsEfs:
+    AllowedValues:
+      - true
+      - false
+    Description: Determines if this region supports EFS (passed in from Main template)
+    Type: String
 
   pProductionVPC:
     Type: AWS::EC2::VPC::Id
-
-  pRenderFarmAmiId:
-    Description: Which AMI do you want to use for Render Instances?
-    Type: AWS::EC2::Image::Id
-
-  pMinimumCapacity:
-    Description: The minimum number of instances that can run in your auto scale group
-    Type: String
-
-  pDesiredCapacity:
-    Description: The desired capacity must be less than or equal to the maximum capacity
-    Type: String
-
-  pMaximumCapacity:
-    Description: The maximum number of instances that you can run in your auto scale group
-    Type: String
 
   pProdAppPrivateSubnetA:
     Description: Production Application Subnet A (private)
@@ -62,21 +49,30 @@ Parameters:
     Description: Production Application Subnet B (private)
     Type: AWS::EC2::Subnet::Id
 
-  pEnvironment:
-    Description: Environment (Dev, Test or Prod)
+  pRenderFarmAmi:
+    Description: Which AMI do you want to use for Render Instances?
+    Type: AWS::EC2::Image::Id
+
+  pRenderFarmMinCapacity:
+    Description: The minimum number of instances that can run in your auto scale group
     Type: String
-    Default: DEV
+
+  pRenderFarmDesiredCapacity:
+    Description: The desired capacity must be less than or equal to the maximum capacity
+    Type: String
+
+  pRenderFarmMaxCapacity:
+    Description: The maximum number of instances that you can run in your auto scale group
+    Type: String
+
+  pEnvironment:
     AllowedValues:
       - DEV
       - TEST
       - PROD
-
-  pSupportsEfs:
-    Description: Determines if this region supports EFS (passed in from Main template)
+    Default: DEV
+    Description: Environment (Dev, Test or Prod)
     Type: String
-    AllowedValues:
-      - true
-      - false
 
 Mappings:
   RegionMap:
@@ -120,7 +116,7 @@ Conditions:
     - Condition: SupportsEfs
 
 Resources:
-  rSecurityGroupRenderFarm:
+  rRenderFarmSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref pProductionVPC
@@ -131,7 +127,7 @@ Resources:
         - Key: Environment
           Value: !Ref pEnvironment
 
-  rRenderFarmEfsMountTargetSecurityGroup:
+  rRenderFarmEfsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: SupportsEfs
     Properties:
@@ -141,14 +137,14 @@ Resources:
         - IpProtocol: tcp
           FromPort: 2049
           ToPort: 2049
-          SourceSecurityGroupId: !Ref rSecurityGroupRenderFarm
+          SourceSecurityGroupId: !Ref rRenderFarmSecurityGroup
       Tags:
         - Key: Name
           Value: efs-sg
         - Key: Environment
           Value: !Ref pEnvironment
 
-  rRenderFarmFileSystem:
+  rRenderFarmEfs:
     Type: AWS::EFS::FileSystem
     Condition: SupportsEfs
     Properties:
@@ -158,23 +154,23 @@ Resources:
         - Key: Name
           Value: RenderFarmFs
 
-  rRenderFarmMountTarget0:
+  rRenderFarmEfsMountTarget0:
     Type: AWS::EFS::MountTarget
     Condition: SupportsEfs
     Properties:
-      FileSystemId: !Ref rRenderFarmFileSystem
+      FileSystemId: !Ref rRenderFarmEfs
       SubnetId: !Ref pProdAppPrivateSubnetA
       SecurityGroups:
-        - !Ref rRenderFarmEfsMountTargetSecurityGroup
+        - !Ref rRenderFarmEfsSecurityGroup
 
-  rRenderFarmMountTarget1:
+  rRenderFarmEfsMountTarget1:
     Type: AWS::EFS::MountTarget
     Condition: SupportsEfs
     Properties:
-      FileSystemId: !Ref rRenderFarmFileSystem
+      FileSystemId: !Ref rRenderFarmEfs
       SubnetId: !Ref pProdAppPrivateSubnetB
       SecurityGroups:
-        - !Ref rRenderFarmEfsMountTargetSecurityGroup
+        - !Ref rRenderFarmEfsSecurityGroup
 
   rRenderFarmRole:
     Type: AWS::IAM::Role
@@ -202,11 +198,11 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        ImageId: !Ref pRenderFarmAmiId
+        ImageId: !Ref pRenderFarmAmi
         IamInstanceProfile:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
-          - !Ref rSecurityGroupRenderFarm
+          - !Ref rRenderFarmSecurityGroup
         UserData:
           Fn::Base64: |
             #!/bin/bash -xe
@@ -216,49 +212,61 @@ Resources:
   rRenderFarmLaunchTemplateEfs:
     Condition: SupportsEfs
     Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            1_propagate_dns:
+              command: !Sub |
+                #!/bin/bash -xe
+                # script to wait for EFS file system DNS name to be propagated, as it can take up to 90s
+                cat << EOF > /tmp/dns.sh
+                results=1
+                while [[ \$results != 0 ]]; do
+                    nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
+                    results=\$?
+                    if [[ \$results = 1 ]]; then
+                        sleep 30s
+                    fi
+                done
+                EOF
+            2_run_script:
+              command: |
+                chmod 755 /tmp/dns.sh
+                /tmp/dns.sh
+            3_mkdir:
+              command: |
+                EFS_DIRECTORY=/mnt/efs
+                mkdir $EFS_DIRECTORY
+            4_mount:
+              command: mount -a -t efs defaults
+            5_fstab:
+              command: !Sub |
+                echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
     Properties:
       LaunchTemplateData:
-        ImageId: !Ref pRenderFarmAmiId
+        ImageId: !Ref pRenderFarmAmi
         IamInstanceProfile:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
-          - !Ref rSecurityGroupRenderFarm
+          - !Ref rRenderFarmSecurityGroup
         UserData:
-          Fn::Base64: !Sub |
+          Fn::Base64: |
             #!/bin/bash -xe
+            yum update --security -y
+            yum update aws-cfn-bootstrap -y
+            yum install amazon-efs-utils -y
 
-            yum -y --security update
-            yum install -y amazon-efs-utils
-
-            # script to wait for EFS file system DNS name to be propagated
-            # as it can take up to 90s
-            cat << EOF > /tmp/dns.sh
-            results=1
-            while [[ \$results != 0 ]]; do
-                nslookup ${rRenderFarmFileSystem}.efs.${AWS::Region}.amazonaws.com
-                results=\$?
-                if [[ \$results = 1 ]]; then
-                    sleep 30s
-                fi
-            done
-            EOF
-
-            chmod 755 /tmp/dns.sh
-            /tmp/dns.sh
-
-            EFS_DIRECTORY=/mnt/efs
-
-            mkdir $EFS_DIRECTORY
-
-            echo "${rRenderFarmFileSystem}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
-            mount -a -t efs defaults
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
+            # Signal the status from cfn-init
+            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
 
   rRenderFarmAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      DesiredCapacity: !Ref pDesiredCapacity
-      MinSize: !Ref pMinimumCapacity
-      MaxSize: !Ref pMaximumCapacity
+      DesiredCapacity: !Ref pRenderFarmDesiredCapacity
+      MinSize: !Ref pRenderFarmMinCapacity
+      MaxSize: !Ref pRenderFarmMaxCapacity
       MixedInstancesPolicy:
         InstancesDistribution:
           OnDemandPercentageAboveBaseCapacity: 0
@@ -268,8 +276,8 @@ Resources:
             Version: 1
           Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
       AvailabilityZones:
-        - !Ref pRegionAZ1Name
-        - !Ref pRegionAZ2Name
+        - !Select [0, !Ref pAvailabilityZones]
+        - !Select [1, !Ref pAvailabilityZones]
       VPCZoneIdentifier:
         - !Ref pProdAppPrivateSubnetA
         - !Ref pProdAppPrivateSubnetB
@@ -282,23 +290,23 @@ Resources:
         WillReplace: true
 
 Outputs:
-  rSecurityGroupRenderFarm:
-    Value: !Ref rSecurityGroupRenderFarm
+  rRenderFarmSecurityGroup:
+    Value: !Ref rRenderFarmSecurityGroup
 
-  rRenderFarmMountTarget0:
+  rRenderFarmEfsMountTarget0:
     Condition: SupportsEfs
-    Value: !Ref rRenderFarmMountTarget0
+    Value: !Ref rRenderFarmEfsMountTarget0
 
-  rRenderFarmMountTarget1:
+  rRenderFarmEfsMountTarget1:
     Condition: SupportsEfs
-    Value: !Ref rRenderFarmMountTarget1
+    Value: !Ref rRenderFarmEfsMountTarget1
 
   rRenderFarmRole:
     Value: !Ref rRenderFarmRole
 
-  rRenderFarmEfsMountTargetSecurityGroup:
+  rRenderFarmEfsSecurityGroup:
     Condition: SupportsEfs
-    Value: !Ref rRenderFarmEfsMountTargetSecurityGroup
+    Value: !Ref rRenderFarmEfsSecurityGroup
 
   rRenderFarmAutoScalingGroup:
     Value: !Ref rRenderFarmAutoScalingGroup

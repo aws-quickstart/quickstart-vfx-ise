@@ -5,24 +5,26 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Region Config
+          default: Region Configuration
         Parameters:
-          - pRegionAZ1Name
-          - pRegionAZ2Name
+          - pAvailabilityZones
 
       - Label:
-          default: Production VPC Config
+          default: Network Configuration
         Parameters:
           - pProductionVPCName
-          - pProductionCIDR
+          - pProductionVpcCIDR
           - pProdAppPrivateSubnetACIDR
           - pProdAppPrivateSubnetBCIDR
 
     ParameterLabels:
+      pAvailabilityZones:
+        default: Select two Availability Zones
+
       pProductionVPCName:
         default: Name of Production VPC
 
-      pProductionCIDR:
+      pProductionVpcCIDR:
         default: Production VPC CIDR block
 
       pProdAppPrivateSubnetACIDR:
@@ -32,55 +34,52 @@ Metadata:
         default: CIDR block of Production Application Subnet B (private)
 
 Parameters:
-  pRegionAZ1Name:
-    Description: Availability Zone 1 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
-
-  pRegionAZ2Name:
-    Description: Availability Zone 2 Name in Region
-    Type: AWS::EC2::AvailabilityZone::Name
+  pAvailabilityZones:
+    Description: The list of Availability Zones to use for the subnets in the VPC.
+      This template uses two Availability Zones from your list and preserves the logical order you specify.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
 
   pProductionVPCName:
+    Default: Production VPC
     Description: Production VPC Name
     Type: String
-    Default: Production-1-VPC
 
-  pProductionCIDR:
-    Description: CIDR block for Production VPC
+  pProductionVpcCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Type: String
     Default: 10.100.0.0/16
+    Description: CIDR block for Production VPC
+    Type: String
 
   pProdAppPrivateSubnetACIDR:
-    Description: CIDR block of Production Application Subnet A (private)
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.100.0.0/19
+    Description: CIDR block of Production Application Subnet A (private)
     Type: String
-    Default: 10.100.96.0/21
 
   pProdAppPrivateSubnetBCIDR:
-    Description: CIDR block of Production Application Subnet B (private)
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.100.32.0/19
+    Description: CIDR block of Production Application Subnet B (private)
     Type: String
-    Default: 10.100.112.0/21
 
   pEnvironment:
-    Description: Environment (Dev, Test or Prod)
-    Type: String
-    Default: DEV
     AllowedValues:
       - DEV
       - TEST
       - PROD
+    Default: DEV
+    Description: Environment (Dev, Test or Prod)
+    Type: String
 
 Resources:
   # -- Create VPC -- #
   rVPCProduction:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref pProductionCIDR
+      CidrBlock: !Ref pProductionVpcCIDR
       InstanceTenancy: default
       EnableDnsSupport: true
       EnableDnsHostnames: true
@@ -95,7 +94,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref pProdAppPrivateSubnetACIDR
-      AvailabilityZone: !Ref pRegionAZ1Name
+      AvailabilityZone: !Select [0, !Ref pAvailabilityZones]
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
@@ -107,7 +106,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref pProdAppPrivateSubnetBCIDR
-      AvailabilityZone: !Ref pRegionAZ2Name
+      AvailabilityZone: !Select [1, !Ref pAvailabilityZones]
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
@@ -187,8 +186,8 @@ Outputs:
   rVPCProduction:
     Value: !Ref rVPCProduction
 
-  pProductionCIDR:
-    Value: !Ref pProductionCIDR
+  pProductionVpcCIDR:
+    Value: !Ref pProductionVpcCIDR
 
   pProductionVPCName:
     Value: !Ref pProductionVPCName
