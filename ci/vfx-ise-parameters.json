@@ -1,15 +1,87 @@
 [
     {
-        "ParameterKey": "pAvailabilityZoneA",
-        "ParameterValue": "$[taskcat_getsingleaz_1]"
+        "ParameterKey": "pAvailabilityZones",
+        "ParameterValue": "$[taskcat_genaz_2]"
     },
     {
-        "ParameterKey": "pAvailabilityZoneB",
-        "ParameterValue": "$[taskcat_getsingleaz_2]"
+        "ParameterKey": "pProductionVpcCIDR",
+        "ParameterValue": "10.100.0.0/16"
+    },
+    {
+        "ParameterKey": "pProdAppPrivateSubnetACIDR",
+        "ParameterValue": "10.100.0.0/19"
+    },
+    {
+        "ParameterKey": "pProdAppPrivateSubnetBCIDR",
+        "ParameterValue": "10.100.32.0/19"
+    },
+    {
+        "ParameterKey": "pManagementVpcCIDR",
+        "ParameterValue": "10.10.0.0/16"
+    },
+    {
+        "ParameterKey": "pManagementDMZSubnetACIDR",
+        "ParameterValue": "10.10.10.0/24"
+    },
+    {
+        "ParameterKey": "pManagementDMZSubnetBCIDR",
+        "ParameterValue": "10.10.20.0/24"
+    },
+    {
+        "ParameterKey": "pMgmtAppPrivateSubnetACIDR",
+        "ParameterValue": "10.10.96.0/21"
+    },
+    {
+        "ParameterKey": "pRenderFarmAmi",
+        "ParameterValue": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+    },
+    {
+        "ParameterKey": "pRenderFarmDesiredCapacity",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "pRenderFarmMaxCapacity",
+        "ParameterValue": "6"
+    },
+    {
+        "ParameterKey": "pLicenseServerInstanceType",
+        "ParameterValue": "t2.micro"
+    },
+    {
+        "ParameterKey": "pLicenseServerAmi",
+        "ParameterValue": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+    },
+    {
+        "ParameterKey": "pLicenseServerDesiredCapacity",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "pLicenseServerMaxCapacity",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "pRenderSchedulerInstanceType",
+        "ParameterValue": "t2.micro"
+    },
+    {
+        "ParameterKey": "pRenderSchedulerAmi",
+        "ParameterValue": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+    },
+    {
+        "ParameterKey": "pSchedulerDesiredCapacity",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "pSchedulerMaxCapacity",
+        "ParameterValue": "1"
     },
     {
         "ParameterKey": "pNotifyEmail",
         "ParameterValue": "distlist@example.org"
+    },
+    {
+        "ParameterKey": "pEnvironment",
+        "ParameterValue": "DEV"
     },
     {
         "ParameterKey": "QSS3BucketName",
