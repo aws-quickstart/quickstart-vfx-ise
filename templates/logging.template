@@ -3,9 +3,10 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Initializes global resources and logging/monitoring capabilities.
 Parameters:
   pNotifyEmail:
+    Default: ''
     Description: Notification email for security events
     Type: String
-    Default: ''
+
 Resources:
   rSecurityAlarmTopic:
     Type: AWS::SNS::Topic
