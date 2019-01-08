@@ -30,6 +30,7 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
+          - pOnDemandPercentage
           - pRenderFarmDesiredCapacity
           - pRenderFarmMaxCapacity
 
@@ -88,6 +89,9 @@ Metadata:
 
       pMgmtAppPrivateSubnetBCIDR:
         default: CIDR block of Management Application Subnet B (private)
+
+      pOnDemandPercentage:
+        default: On-Demand Percentage
 
       pNotifyEmail:
         default: Notification Email Address
@@ -164,6 +168,13 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
     Description: The AMI for the Render Farm EC2 instances
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    
+  pOnDemandPercentage:
+    AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
+    ConstraintDescription: OnDemand Percentage should be between 0 and 100, inclusive
+    Default: 0
+    Description: The On-Demand percentage set for your Render Farm Compute Environment with Spot Instances.
+    Type: String
 
   pRenderFarmDesiredCapacity:
     Default: 2
@@ -403,6 +414,7 @@ Resources:
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
         pRenderFarmAmi: !Ref pRenderFarmAmi
+        pOnDemandPercentage: !Ref pOnDemandPercentage
         pRenderFarmMinCapacity: '1'
         pRenderFarmDesiredCapacity: !Ref pRenderFarmDesiredCapacity
         pRenderFarmMaxCapacity: !Ref pRenderFarmMaxCapacity

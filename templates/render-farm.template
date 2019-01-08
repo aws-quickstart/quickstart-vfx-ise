@@ -21,6 +21,7 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
+          - pOnDemandPercentage
           - pRenderFarmMinCapacity
           - pRenderFarmDesiredCapacity
           - pRenderFarmMaxCapacity
@@ -52,6 +53,13 @@ Parameters:
   pRenderFarmAmi:
     Description: Which AMI do you want to use for Render Instances?
     Type: AWS::EC2::Image::Id
+
+  pOnDemandPercentage:
+    AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
+    ConstraintDescription: On-Demand Percentage should be between 0 and 100, inclusive
+    Default: 0
+    Description: The On-Demand percentage set for your Render Farm Compute Environment Instances.
+    Type: String
 
   pRenderFarmMinCapacity:
     Description: The minimum number of instances that can run in your auto scale group
@@ -215,34 +223,31 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
-          commands:
-            1_propagate_dns:
-              command: !Sub |
+          files:
+            /tmp/dns.sh:
+              content: !Sub |
                 #!/bin/bash -xe
-                # script to wait for EFS file system DNS name to be propagated, as it can take up to 90s
-                cat << EOF > /tmp/dns.sh
                 results=1
-                while [[ \$results != 0 ]]; do
+                while [[ $results != 0 ]]; do
                     nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
-                    results=\$?
-                    if [[ \$results = 1 ]]; then
+                    results=$?
+                    if [[ $results = 1 ]]; then
                         sleep 30s
                     fi
                 done
-                EOF
-            2_run_script:
-              command: |
-                chmod 755 /tmp/dns.sh
-                /tmp/dns.sh
-            3_mkdir:
-              command: |
+              mode: '000755'
+              owner: root
+              group: root
+          commands:
+            01_wait_for_dns_propogation:
+              command: /tmp/dns.sh
+            02_mount_efs:
+              command: !Sub |
+                #!/bin/bash -xe
                 EFS_DIRECTORY=/mnt/efs
                 mkdir $EFS_DIRECTORY
-            4_mount:
-              command: mount -a -t efs defaults
-            5_fstab:
-              command: !Sub |
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
+                mount -a
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
@@ -251,7 +256,7 @@ Resources:
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
         UserData:
-          Fn::Base64: |
+          Fn::Base64: !Sub |
             #!/bin/bash -xe
             yum update --security -y
             yum update aws-cfn-bootstrap -y
@@ -269,7 +274,7 @@ Resources:
       MaxSize: !Ref pRenderFarmMaxCapacity
       MixedInstancesPolicy:
         InstancesDistribution:
-          OnDemandPercentageAboveBaseCapacity: 0
+          OnDemandPercentageAboveBaseCapacity: !Ref pOnDemandPercentage
         LaunchTemplate:
           LaunchTemplateSpecification:
             LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
