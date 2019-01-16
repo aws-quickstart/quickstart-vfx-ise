@@ -108,7 +108,7 @@ Resources:
       Roles:
         - !Ref rLicenseServerInstanceRole
 
-  rLicenseServerAutoScalingConfig:
+  rLicenseServerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
       AWS::CloudFormation::Init:
@@ -163,9 +163,9 @@ Resources:
           yum update --security -y
           yum update aws-cfn-bootstrap -y
 
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rLicenseServerAutoScalingConfig --region ${AWS::Region}
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rLicenseServerLaunchConfiguration --region ${AWS::Region}
           # Signal the status from cfn-init
-          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rLicenseServerAutoScalingConfig --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rLicenseServerLaunchConfiguration --region ${AWS::Region}
 
   rLicenseServerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -176,7 +176,7 @@ Resources:
       VPCZoneIdentifier:
         - !Ref pMgmtAppPrivateSubnetA
         - !Ref pMgmtAppPrivateSubnetB
-      LaunchConfigurationName: !Ref rLicenseServerAutoScalingConfig
+      LaunchConfigurationName: !Ref rLicenseServerLaunchConfiguration
       MinSize: !Ref pLicenseServerMinCapacity
       DesiredCapacity: !Ref pLicenseServerDesiredCapacity
       MaxSize: !Ref pLicenseServerMaxCapacity
@@ -203,5 +203,5 @@ Outputs:
   rLicenseServerAutoScalingGroup:
     Value: !Ref rLicenseServerAutoScalingGroup
 
-  rLicenseServerAutoScalingConfig:
-    Value: !Ref rLicenseServerAutoScalingConfig
+  rLicenseServerLaunchConfiguration:
+    Value: !Ref rLicenseServerLaunchConfiguration

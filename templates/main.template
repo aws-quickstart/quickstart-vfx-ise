@@ -54,6 +54,7 @@ Metadata:
           default: Email and Environment Configuration
         Parameters:
           - pNotifyEmail
+          - pProjectName
           - pEnvironment
 
       - Label:
@@ -232,6 +233,11 @@ Parameters:
       a confirmation email)
     Type: String
 
+  pProjectName:
+    Default: MyProject
+    Description: Project name
+    Type: String
+    
   pEnvironment:
     AllowedValues:
       - DEV
@@ -418,6 +424,7 @@ Resources:
         pRenderFarmMinCapacity: '1'
         pRenderFarmDesiredCapacity: !Ref pRenderFarmDesiredCapacity
         pRenderFarmMaxCapacity: !Ref pRenderFarmMaxCapacity
+        pProjectName: !Ref pProjectName
         pEnvironment: !Ref pEnvironment
 
   LicenseServerTemplate:

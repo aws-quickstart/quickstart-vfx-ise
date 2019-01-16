@@ -108,7 +108,7 @@ Resources:
       Roles:
         - !Ref rRenderSchedulerInstanceRole
 
-  rRenderSchedulerAutoScalingConfig:
+  rRenderSchedulerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
       AWS::CloudFormation::Init:
@@ -163,9 +163,9 @@ Resources:
           yum update --security -y
           yum update aws-cfn-bootstrap -y
 
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderSchedulerAutoScalingConfig --region ${AWS::Region}
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderSchedulerLaunchConfiguration --region ${AWS::Region}
           # Signal the status from cfn-init
-          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderSchedulerAutoScalingConfig --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderSchedulerLaunchConfiguration --region ${AWS::Region}
 
   rRenderSchedulerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -176,7 +176,7 @@ Resources:
       VPCZoneIdentifier:
         - !Ref pMgmtAppPrivateSubnetA
         - !Ref pMgmtAppPrivateSubnetB
-      LaunchConfigurationName: !Ref rRenderSchedulerAutoScalingConfig
+      LaunchConfigurationName: !Ref rRenderSchedulerLaunchConfiguration
       MinSize: !Ref pSchedulerMinCapacity
       DesiredCapacity: !Ref pSchedulerDesiredCapacity
       MaxSize: !Ref pSchedulerMaxCapacity
@@ -197,8 +197,8 @@ Outputs:
   rRenderSchedulerSecurityGroup:
     Value: !Ref rRenderSchedulerSecurityGroup
 
-  rRenderSchedulerAutoScalingConfig:
-    Value: !Ref rRenderSchedulerAutoScalingConfig
+  rRenderSchedulerLaunchConfiguration:
+    Value: !Ref rRenderSchedulerLaunchConfiguration
 
   rRenderSchedulerAutoScalingGroup:
     Value: !Ref rRenderSchedulerAutoScalingGroup
