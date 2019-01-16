@@ -73,6 +73,10 @@ Parameters:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
 
+  pProjectName:
+    Description: Project name
+    Type: String
+
   pEnvironment:
     AllowedValues:
       - DEV
@@ -214,7 +218,6 @@ Resources:
         UserData:
           Fn::Base64: |
             #!/bin/bash -xe
-
             yum -y --security update
 
   rRenderFarmLaunchTemplateEfs:
@@ -226,14 +229,14 @@ Resources:
           files:
             /tmp/dns.sh:
               content: !Sub |
-                #!/bin/bash -xe
+                #!/bin/bash -x
                 results=1
                 while [[ $results != 0 ]]; do
-                    nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
-                    results=$?
-                    if [[ $results = 1 ]]; then
-                        sleep 30s
-                    fi
+                  nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
+                  results=$?
+                  if [[ $results = 1 ]]; then
+                    sleep 30s
+                  fi
                 done
               mode: '000755'
               owner: root
@@ -247,7 +250,7 @@ Resources:
                 EFS_DIRECTORY=/mnt/efs
                 mkdir $EFS_DIRECTORY
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
-                mount -a
+                mount -a -t efs defaults
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
@@ -289,6 +292,12 @@ Resources:
       Tags:
         - Key: Name
           Value: render-farm-instance
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: !Ref pEnvironment
+          PropagateAtLaunch: true
+        - Key: Project
+          Value: !Ref pProjectName
           PropagateAtLaunch: true
     UpdatePolicy:
       AutoScalingReplacingUpdate:
