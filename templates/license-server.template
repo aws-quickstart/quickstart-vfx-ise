@@ -135,16 +135,15 @@ Resources:
                 log_stream_name = %INSTANCE_ID/var/log/messages
                 datetime_format = %b %d %H:%M:%S
                 initial_position = start_of_file
-            /etc/init/cloudwatch-logs-start.conf:
+            /tmp/awslog_init.sh:
               content: !Sub |
-                script
-                  exec 2>>/var/log/cloudwatch-logs-start.log
-                  set -x
-                  INSTANCE_ID=`ec2-metadata -i`
-                  sed -i "s|%INSTANCE_ID|$INSTANCE_ID|g" /etc/awslogs/awslogs.conf
-                  chkconfig awslogs on
-                  service awslogs start
-                end script
+                #!/bin/bash -xe
+                INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+                sed -i "s|%INSTANCE_ID|$INSTANCE_ID|g" /etc/awslogs/awslogs.conf
+                sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+                systemctl enable awslogsd.service
+                systemctl start awslogsd.service
+              mode: '755'
           commands:
             01_check_data:
               command: !Sub |
@@ -177,7 +176,7 @@ Resources:
             05_fstab:
               command: echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
             06_awslogs:
-                command: !Sub sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+                command: !Sub /tmp/awslog_init.sh
     Properties:
       AssociatePublicIpAddress: false
       ImageId: !Ref pLicenseServerAmi
