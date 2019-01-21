@@ -108,13 +108,44 @@ Resources:
       Roles:
         - !Ref rRenderSchedulerInstanceRole
 
+  rRenderSchedulerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub render-scheduler-${pEnvironment}
+      RetentionInDays: 7
+
   rRenderSchedulerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Metadata:
       AWS::CloudFormation::Init:
         config:
+          packages:
+            yum:
+              jq: []
+              awslogs: []
+          files:
+            /etc/awslogs/awslogs.conf:
+              content: !Sub |
+                [general]
+                state_file = /var/lib/awslogs/agent-state
+
+                [/var/log/messages]
+                file = /var/log/messages
+                log_group_name = ${rRenderSchedulerLogGroup}
+                log_stream_name = %INSTANCE_ID/var/log/messages
+                datetime_format = %b %d %H:%M:%S
+                initial_position = start_of_file
+            /tmp/awslog_init.sh:
+              content: !Sub |
+                #!/bin/bash -xe
+                INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+                sed -i "s|%INSTANCE_ID|$INSTANCE_ID|g" /etc/awslogs/awslogs.conf
+                sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+                systemctl enable awslogsd.service
+                systemctl start awslogsd.service
+              mode: '755'
           commands:
-            1_check_data:
+            01_check_data:
               command: !Sub |
                 #!/bin/bash -xe
                 EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
@@ -131,19 +162,21 @@ Resources:
                     --output text)
                   sleep 5
                 done
-            2_mkfs:
+            02_mkfs:
               command: |
                 #!/bin/bash -xe
                 # Format /dev/xvdh if it does not contain a partition yet
                 if [ "$(file -b -s /dev/xvdh)" == "data" ];
                   then mkfs -t ext4 /dev/xvdh
                 fi
-            3_mkdir:
+            03_mkdir:
               command: mkdir -p /data
-            4_mount:
+            04_mount:
               command: mount /dev/xvdh /data
-            5_fstab:
+            05_fstab:
               command: echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
+            06_awslogs:
+              command: /tmp/awslog_init.sh
     Properties:
       AssociatePublicIpAddress: false
       ImageId: !Ref pRenderSchedulerAmi
