@@ -30,7 +30,7 @@ Parameters:
     Description: The list of Availability Zones to use for the subnets in the VPC.
       This template uses two Availability Zones from your list and preserves the logical order you specify.
     Type: List<AWS::EC2::AvailabilityZone::Name>
-    
+
   pManagementVPC:
     Description: Management VPC
     Type: AWS::EC2::VPC::Id
@@ -147,7 +147,7 @@ Resources:
           commands:
             01_check_data:
               command: !Sub |
-                #!/bin/bash -xe
+                #!/bin/bash -x
                 EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
 
                 # Volume /dev/sdh (which will get created as /dev/xvdh on Amazon Linux)
@@ -164,7 +164,7 @@ Resources:
                 done
             02_mkfs:
               command: |
-                #!/bin/bash -xe
+                #!/bin/bash -x
                 # Format /dev/xvdh if it does not contain a partition yet
                 if [ "$(file -b -s /dev/xvdh)" == "data" ];
                   then mkfs -t ext4 /dev/xvdh
@@ -192,13 +192,13 @@ Resources:
         - !Ref rLicenseServerSecurityGroup
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash -xe
+          #!/bin/bash -x
           yum update --security -y
           yum update aws-cfn-bootstrap -y
 
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rLicenseServerLaunchConfiguration --region ${AWS::Region}
           # Signal the status from cfn-init
-          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rLicenseServerLaunchConfiguration --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource rLicenseServerAutoScalingGroup --region ${AWS::Region}
 
   rLicenseServerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -222,7 +222,16 @@ Resources:
         - Key: Environment
           Value: !Ref pEnvironment
           PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: 'PT5M'
     UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: 'PT2M'
+        WaitOnResourceSignals: true
       AutoScalingReplacingUpdate:
         WillReplace: true
 

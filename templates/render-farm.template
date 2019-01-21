@@ -297,7 +297,7 @@ Resources:
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
             # Signal the status from cfn-init
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmAutoScalingGroup --region ${AWS::Region}
 
   rRenderFarmAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -321,7 +321,7 @@ Resources:
         - !Ref pProdAppPrivateSubnetB
       Tags:
         - Key: Name
-          Value: render-farm-instance
+          Value: vfx-render-farm
           PropagateAtLaunch: true
         - Key: Environment
           Value: !Ref pEnvironment
@@ -329,7 +329,16 @@ Resources:
         - Key: Project
           Value: !Ref pProjectName
           PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: 'PT5M'
     UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: 'PT2M'
+        WaitOnResourceSignals: true
       AutoScalingReplacingUpdate:
         WillReplace: true
 
