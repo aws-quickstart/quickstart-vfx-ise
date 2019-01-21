@@ -165,7 +165,7 @@ Resources:
 
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderSchedulerLaunchConfiguration --region ${AWS::Region}
           # Signal the status from cfn-init
-          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderSchedulerLaunchConfiguration --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderSchedulerAutoScalingGroup --region ${AWS::Region}
 
   rRenderSchedulerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -189,7 +189,16 @@ Resources:
         - Key: Environment
           Value: !Ref pEnvironment
           PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: 'PT5M'
     UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: 'PT2M'
+        WaitOnResourceSignals: true
       AutoScalingReplacingUpdate:
         WillReplace: true
 
