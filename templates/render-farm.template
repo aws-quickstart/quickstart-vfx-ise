@@ -205,6 +205,12 @@ Resources:
       Roles:
         - !Ref rRenderFarmRole
 
+  rRenderFarmLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub render-farm-${pEnvironment}
+      RetentionInDays: 7
+
   rRenderFarmLaunchTemplateNoEfs:
     Condition: NoEfsSupport
     Type: AWS::EC2::LaunchTemplate
@@ -226,6 +232,10 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
+          packages:
+            yum:
+              jq: []
+              awslogs: []
           files:
             /tmp/dns.sh:
               content: !Sub |
@@ -239,8 +249,26 @@ Resources:
                   fi
                 done
               mode: '000755'
-              owner: root
-              group: root
+            /etc/awslogs/awslogs.conf:
+              content: !Sub |
+                [general]
+                state_file = /var/lib/awslogs/agent-state
+
+                [/var/log/messages]
+                file = /var/log/messages
+                log_group_name = ${rRenderFarmLogGroup}
+                log_stream_name = %INSTANCE_ID/var/log/messages
+                datetime_format = %b %d %H:%M:%S
+                initial_position = start_of_file
+            /tmp/awslog_init.sh:
+              content: !Sub |
+                #!/bin/bash -xe
+                INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+                sed -i "s|%INSTANCE_ID|$INSTANCE_ID|g" /etc/awslogs/awslogs.conf
+                sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+                systemctl enable awslogsd.service
+                systemctl start awslogsd.service
+              mode: '755'
           commands:
             01_wait_for_dns_propogation:
               command: /tmp/dns.sh
@@ -251,6 +279,8 @@ Resources:
                 mkdir $EFS_DIRECTORY
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
                 mount -a -t efs defaults
+            03_awslogs:
+              command: !Sub /tmp/awslog_init.sh
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
