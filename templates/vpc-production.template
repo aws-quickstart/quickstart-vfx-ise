@@ -172,6 +172,8 @@ Resources:
 
   rProdVpcFlowLogGroup:
     Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 90
 
   rProdVpcFlowLog:
     Type: AWS::EC2::FlowLog
