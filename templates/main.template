@@ -1,7 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Provides nesting for required VFX stacks to deploy a full sample render application
-  (for demonstration/POC/testing)
+Description: Creates AWS infrastrucutre to deploy VFX render application. (qp-1oslqr42h)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
