@@ -22,3 +22,10 @@ tests:
   quickstart-vfx-main:
     parameter_input: vfx-ise-parameters.json
     template_file: main.template
+    regions:
+    - ap-northeast-1
+    - ap-southeast-2
+    - eu-central-1
+    - eu-west-1
+    - us-east-1
+    - us-west-2
