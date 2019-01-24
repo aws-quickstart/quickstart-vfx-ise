@@ -90,6 +90,19 @@ Resources:
       SecurityGroupIds:
         - !Ref VpcEndpointSecurityGroup
 
+  CfnVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref pProductionVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.cloudformation
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref pProdAppPrivateSubnetA
+        - !Ref pProdAppPrivateSubnetB
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
   CloudwatchLogsVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:

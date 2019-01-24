@@ -73,6 +73,10 @@ Parameters:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
 
+  pProjectName:
+    Description: Project name
+    Type: String
+
   pEnvironment:
     AllowedValues:
       - DEV
@@ -201,6 +205,12 @@ Resources:
       Roles:
         - !Ref rRenderFarmRole
 
+  rRenderFarmLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub render-farm-${pEnvironment}
+      RetentionInDays: 7
+
   rRenderFarmLaunchTemplateNoEfs:
     Condition: NoEfsSupport
     Type: AWS::EC2::LaunchTemplate
@@ -214,7 +224,6 @@ Resources:
         UserData:
           Fn::Base64: |
             #!/bin/bash -xe
-
             yum -y --security update
 
   rRenderFarmLaunchTemplateEfs:
@@ -223,21 +232,43 @@ Resources:
     Metadata:
       AWS::CloudFormation::Init:
         config:
+          packages:
+            yum:
+              jq: []
+              awslogs: []
           files:
             /tmp/dns.sh:
               content: !Sub |
-                #!/bin/bash -xe
+                #!/bin/bash -x
                 results=1
                 while [[ $results != 0 ]]; do
-                    nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
-                    results=$?
-                    if [[ $results = 1 ]]; then
-                        sleep 30s
-                    fi
+                  nslookup ${rRenderFarmEfs}.efs.${AWS::Region}.amazonaws.com
+                  results=$?
+                  if [[ $results = 1 ]]; then
+                    sleep 30s
+                  fi
                 done
               mode: '000755'
-              owner: root
-              group: root
+            /etc/awslogs/awslogs.conf:
+              content: !Sub |
+                [general]
+                state_file = /var/lib/awslogs/agent-state
+
+                [/var/log/messages]
+                file = /var/log/messages
+                log_group_name = ${rRenderFarmLogGroup}
+                log_stream_name = %INSTANCE_ID/var/log/messages
+                datetime_format = %b %d %H:%M:%S
+                initial_position = start_of_file
+            /tmp/awslog_init.sh:
+              content: !Sub |
+                #!/bin/bash -xe
+                INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+                sed -i "s|%INSTANCE_ID|$INSTANCE_ID|g" /etc/awslogs/awslogs.conf
+                sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+                systemctl enable awslogsd.service
+                systemctl start awslogsd.service
+              mode: '755'
           commands:
             01_wait_for_dns_propogation:
               command: /tmp/dns.sh
@@ -247,7 +278,9 @@ Resources:
                 EFS_DIRECTORY=/mnt/efs
                 mkdir $EFS_DIRECTORY
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
-                mount -a
+                mount -a -t efs defaults
+            03_awslogs:
+              command: !Sub /tmp/awslog_init.sh
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
@@ -264,7 +297,7 @@ Resources:
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
             # Signal the status from cfn-init
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmAutoScalingGroup --region ${AWS::Region}
 
   rRenderFarmAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -288,9 +321,24 @@ Resources:
         - !Ref pProdAppPrivateSubnetB
       Tags:
         - Key: Name
-          Value: render-farm-instance
+          Value: vfx-render-farm
           PropagateAtLaunch: true
+        - Key: Environment
+          Value: !Ref pEnvironment
+          PropagateAtLaunch: true
+        - Key: Project
+          Value: !Ref pProjectName
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: 'PT5M'
     UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: 'PT2M'
+        WaitOnResourceSignals: true
       AutoScalingReplacingUpdate:
         WillReplace: true
 

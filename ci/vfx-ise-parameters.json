@@ -80,6 +80,10 @@
         "ParameterValue": "distlist@example.org"
     },
     {
+        "ParameterKey": "pProjectName",
+        "ParameterValue": "MyProject"
+    },
+    {
         "ParameterKey": "pEnvironment",
         "ParameterValue": "DEV"
     },

@@ -5,7 +5,7 @@ This Quick Start deploys an AWS Cloud environment that helps media and entertain
 
 The Quick Start will deploy a standard VFX Render architecture using multiple VPCs.
 
-![Architecture](docs/vfx-on-aws-architecture.png)
+![Architecture](docs/vfx-on-aws-architecture-vfx_qs.png)
 
 For architectural details, best practices, step-by-step instructions, and customization options, see the 
 [deployment guide](https://< deployment guide link >).
