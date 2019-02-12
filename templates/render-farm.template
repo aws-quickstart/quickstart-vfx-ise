@@ -63,11 +63,13 @@ Parameters:
 
   pRenderFarmMinCapacity:
     Description: The minimum number of instances that can run in your auto scale group
+    Default: 1
     Type: String
 
   pRenderFarmDesiredCapacity:
     Description: The desired capacity must be less than or equal to the maximum capacity
     Type: String
+    Default: 1
 
   pTargetCapacity:
     Description: The number of instances in the spot fleet
@@ -76,6 +78,7 @@ Parameters:
   pRenderFarmMaxCapacity:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
+    Default: 1
 
   pProjectName:
     Description: Project name
@@ -93,35 +96,35 @@ Parameters:
 Mappings:
   RegionMap:
     ap-northeast-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-northeast-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-south-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t2.small]
+      InstanceTypes: [t2.micro, t2.micro]
     ap-southeast-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-southeast-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ca-central-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-central-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-west-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     sa-east-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-east-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-east-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-gov-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-west-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
 
 Conditions:
   SupportsEfs: !Equals
@@ -132,6 +135,7 @@ Conditions:
     - Condition: SupportsEfs
 
 Resources:
+
   rRenderFarmSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -217,11 +221,11 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-                - ec2.amazonaws.com
+                - spotfleet.amazonaws.com
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::687471791986:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetRole
 
   rRenderFarmLogGroup:
     Type: AWS::Logs::LogGroup
@@ -239,6 +243,8 @@ Resources:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
+        Placement:
+          AvailabilityZone: !Ref pAvailabilityZones
         UserData:
           Fn::Base64: |
             #!/bin/bash -xe
@@ -306,8 +312,15 @@ Resources:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
-        Placement:
-          AvailabilityZone: !Ref pAvailabilityZones
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: vfx-render-farm
+              - Key: Environment
+                Value: !Ref pEnvironment
+              - Key: Project
+                Value: !Ref pProjectName
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
@@ -317,72 +330,23 @@ Resources:
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
             # Signal the status from cfn-init
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmAutoScalingGroup --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmSpotFleet --region ${AWS::Region}
 
   rRenderFarmSpotFleet:
     Type: AWS::EC2::SpotFleet
     Properties:
       SpotFleetRequestConfigData:
-        IamFleetRole: !Ref rSpotFleetRole
+        IamFleetRole: !GetAtt rSpotFleetRole.Arn
         TargetCapacity: !Ref pTargetCapacity
         LaunchTemplateConfigs:
           - LaunchTemplateSpecification:
               LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
-              Version: '1'
-            Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
-#    Tags:
-#      - Key: Name
-#        Value: vfx-render-farm
-#        PropagateAtLaunch: true
-#      - Key: Environment
-#        Value: !Ref pEnvironment
-#        PropagateAtLaunch: true
-#      - Key: Project
-#        Value: !Ref pProjectName
-#        PropagateAtLaunch: true
-
-#  rRenderFarmAutoScalingGroup:
-#    Type: AWS::AutoScaling::AutoScalingGroup
-#    Properties:
-#      DesiredCapacity: !Ref pRenderFarmDesiredCapacity
-#      MinSize: !Ref pRenderFarmMinCapacity
-#      MaxSize: !Ref pRenderFarmMaxCapacity
-#      MixedInstancesPolicy:
-#        InstancesDistribution:
-#          OnDemandPercentageAboveBaseCapacity: !Ref pOnDemandPercentage
-#        LaunchTemplate:
-#          LaunchTemplateSpecification:
-#            LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
-#            Version: 1
-#          Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
-#      AvailabilityZones:
-#        - !Select [0, !Ref pAvailabilityZones]
-#        - !Select [1, !Ref pAvailabilityZones]
-#      VPCZoneIdentifier:
-#        - !Ref pProdAppPrivateSubnetA
-#        - !Ref pProdAppPrivateSubnetB
-#      Tags:
-#        - Key: Name
-#          Value: vfx-render-farm
-#          PropagateAtLaunch: true
-#        - Key: Environment
-#          Value: !Ref pEnvironment
-#          PropagateAtLaunch: true
-#        - Key: Project
-#          Value: !Ref pProjectName
-#          PropagateAtLaunch: true
-#    CreationPolicy:
-#      ResourceSignal:
-#        Count: 1
-#        Timeout: 'PT5M'
-#    UpdatePolicy:
-#      AutoScalingRollingUpdate:
-#        MinInstancesInService: 1
-#        MaxBatchSize: 1
-#        PauseTime: 'PT2M'
-#        WaitOnResourceSignals: true
-#      AutoScalingReplacingUpdate:
-#        WillReplace: true
+              Version: '3'
+            Overrides:
+              - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                AvailabilityZone: !Select [0, !Ref pAvailabilityZones]
+              - InstanceType: !Select [1, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                AvailabilityZone: !Select [1, !Ref pAvailabilityZones]
 
 Outputs:
   rRenderFarmSecurityGroup:
@@ -402,9 +366,6 @@ Outputs:
   rRenderFarmEfsSecurityGroup:
     Condition: SupportsEfs
     Value: !Ref rRenderFarmEfsSecurityGroup
-
-#  rRenderFarmAutoScalingGroup:
-#    Value: !Ref rRenderFarmAutoScalingGroup
 
   rRenderFarmLaunchTemplate:
     Value: !If
