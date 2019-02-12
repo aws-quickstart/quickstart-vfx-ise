@@ -329,8 +329,6 @@ Resources:
             yum install amazon-efs-utils -y
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
-            # Signal the status from cfn-init
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmSpotFleet --region ${AWS::Region}
 
   rRenderFarmSpotFleet:
     Type: AWS::EC2::SpotFleet
@@ -341,7 +339,7 @@ Resources:
         LaunchTemplateConfigs:
           - LaunchTemplateSpecification:
               LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
-              Version: '3'
+              Version: '4'
             Overrides:
               - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
                 AvailabilityZone: !Select [0, !Ref pAvailabilityZones]
