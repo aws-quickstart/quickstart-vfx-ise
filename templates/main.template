@@ -91,7 +91,7 @@ Metadata:
         default: CIDR block of Management Application Subnet B (private)
 
       pOnDemandPercentage:
-        default: On-Demand Percentage
+        default: On Demand Percentage
 
       pNotifyEmail:
         default: Notification Email Address
@@ -173,7 +173,7 @@ Parameters:
     AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
     ConstraintDescription: OnDemand Percentage should be between 0 and 100, inclusive
     Default: 0
-    Description: The On-Demand percentage set for your Render Farm Compute Environment with Spot Instances.
+    Description: Controls the percentages of On-Demand Instances and Spot Instances. Default value results in 0% On-Demand.
     Type: String
 
   pRenderFarmDesiredCapacity:

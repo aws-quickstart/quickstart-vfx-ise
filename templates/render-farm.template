@@ -69,6 +69,10 @@ Parameters:
     Description: The desired capacity must be less than or equal to the maximum capacity
     Type: String
 
+  pTargetCapacity:
+    Description: The number of instances in the spot fleet
+    Type: String
+
   pRenderFarmMaxCapacity:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
@@ -205,6 +209,20 @@ Resources:
       Roles:
         - !Ref rRenderFarmRole
 
+  rSpotFleetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::687471791986:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot
+
   rRenderFarmLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -280,7 +298,7 @@ Resources:
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
                 mount -a -t efs defaults
             03_awslogs:
-              command: !Sub /tmp/awslog_init.sh
+              command: tmp/awslog_init.sh
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
@@ -288,6 +306,8 @@ Resources:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
+        Placement:
+          AvailabilityZone: !Ref pAvailabilityZones
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
@@ -299,48 +319,70 @@ Resources:
             # Signal the status from cfn-init
             /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmAutoScalingGroup --region ${AWS::Region}
 
-  rRenderFarmAutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
+  rRenderFarmSpotFleet:
+    Type: AWS::EC2::SpotFleet
     Properties:
-      DesiredCapacity: !Ref pRenderFarmDesiredCapacity
-      MinSize: !Ref pRenderFarmMinCapacity
-      MaxSize: !Ref pRenderFarmMaxCapacity
-      MixedInstancesPolicy:
-        InstancesDistribution:
-          OnDemandPercentageAboveBaseCapacity: !Ref pOnDemandPercentage
-        LaunchTemplate:
-          LaunchTemplateSpecification:
-            LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
-            Version: 1
-          Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
-      AvailabilityZones:
-        - !Select [0, !Ref pAvailabilityZones]
-        - !Select [1, !Ref pAvailabilityZones]
-      VPCZoneIdentifier:
-        - !Ref pProdAppPrivateSubnetA
-        - !Ref pProdAppPrivateSubnetB
-      Tags:
-        - Key: Name
-          Value: vfx-render-farm
-          PropagateAtLaunch: true
-        - Key: Environment
-          Value: !Ref pEnvironment
-          PropagateAtLaunch: true
-        - Key: Project
-          Value: !Ref pProjectName
-          PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT5M'
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: 1
-        MaxBatchSize: 1
-        PauseTime: 'PT2M'
-        WaitOnResourceSignals: true
-      AutoScalingReplacingUpdate:
-        WillReplace: true
+      SpotFleetRequestConfigData:
+        IamFleetRole: !Ref rSpotFleetRole
+        TargetCapacity: !Ref pTargetCapacity
+        LaunchTemplateConfigs:
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
+              Version: '1'
+            Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
+#    Tags:
+#      - Key: Name
+#        Value: vfx-render-farm
+#        PropagateAtLaunch: true
+#      - Key: Environment
+#        Value: !Ref pEnvironment
+#        PropagateAtLaunch: true
+#      - Key: Project
+#        Value: !Ref pProjectName
+#        PropagateAtLaunch: true
+
+#  rRenderFarmAutoScalingGroup:
+#    Type: AWS::AutoScaling::AutoScalingGroup
+#    Properties:
+#      DesiredCapacity: !Ref pRenderFarmDesiredCapacity
+#      MinSize: !Ref pRenderFarmMinCapacity
+#      MaxSize: !Ref pRenderFarmMaxCapacity
+#      MixedInstancesPolicy:
+#        InstancesDistribution:
+#          OnDemandPercentageAboveBaseCapacity: !Ref pOnDemandPercentage
+#        LaunchTemplate:
+#          LaunchTemplateSpecification:
+#            LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
+#            Version: 1
+#          Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
+#      AvailabilityZones:
+#        - !Select [0, !Ref pAvailabilityZones]
+#        - !Select [1, !Ref pAvailabilityZones]
+#      VPCZoneIdentifier:
+#        - !Ref pProdAppPrivateSubnetA
+#        - !Ref pProdAppPrivateSubnetB
+#      Tags:
+#        - Key: Name
+#          Value: vfx-render-farm
+#          PropagateAtLaunch: true
+#        - Key: Environment
+#          Value: !Ref pEnvironment
+#          PropagateAtLaunch: true
+#        - Key: Project
+#          Value: !Ref pProjectName
+#          PropagateAtLaunch: true
+#    CreationPolicy:
+#      ResourceSignal:
+#        Count: 1
+#        Timeout: 'PT5M'
+#    UpdatePolicy:
+#      AutoScalingRollingUpdate:
+#        MinInstancesInService: 1
+#        MaxBatchSize: 1
+#        PauseTime: 'PT2M'
+#        WaitOnResourceSignals: true
+#      AutoScalingReplacingUpdate:
+#        WillReplace: true
 
 Outputs:
   rRenderFarmSecurityGroup:
@@ -361,8 +403,8 @@ Outputs:
     Condition: SupportsEfs
     Value: !Ref rRenderFarmEfsSecurityGroup
 
-  rRenderFarmAutoScalingGroup:
-    Value: !Ref rRenderFarmAutoScalingGroup
+#  rRenderFarmAutoScalingGroup:
+#    Value: !Ref rRenderFarmAutoScalingGroup
 
   rRenderFarmLaunchTemplate:
     Value: !If
