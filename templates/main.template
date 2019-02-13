@@ -29,9 +29,7 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
-          - pOnDemandPercentage
-          - pRenderFarmDesiredCapacity
-          - pRenderFarmMaxCapacity
+          - pTargetCapacity
 
       - Label:
           default: License Server Configuration
@@ -90,8 +88,8 @@ Metadata:
       pMgmtAppPrivateSubnetBCIDR:
         default: CIDR block of Management Application Subnet B (private)
 
-      pOnDemandPercentage:
-        default: On-Demand Percentage
+      pTargetCapacity:
+        default: Spot Fleet Capacity
 
       pNotifyEmail:
         default: Notification Email Address
@@ -168,22 +166,10 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
     Description: The AMI for the Render Farm EC2 instances
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    
-  pOnDemandPercentage:
-    AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
-    ConstraintDescription: OnDemand Percentage should be between 0 and 100, inclusive
-    Default: 0
-    Description: The On-Demand percentage set for your Render Farm Compute Environment with Spot Instances.
-    Type: String
 
-  pRenderFarmDesiredCapacity:
+  pTargetCapacity:
     Default: 2
-    Description: The desired capacity must be less than or equal to the maximum capacity
-    Type: String
-
-  pRenderFarmMaxCapacity:
-    Default: 6
-    Description: The maximum number of instances that you can run in your auto scale group
+    Description: The number of instances in the spot fleet
     Type: String
 
   pLicenseServerInstanceType:
@@ -236,7 +222,7 @@ Parameters:
     Default: MyProject
     Description: Project name
     Type: String
-    
+
   pEnvironment:
     AllowedValues:
       - DEV
@@ -288,7 +274,7 @@ Mappings:
     eu-west-1:
       EFS: 'true'
     eu-west-2:
-      EFS: 'false'
+      EFS: 'true'
     eu-north-1:
       EFS: 'false'
     eu-west-3:
@@ -411,18 +397,11 @@ Resources:
           - RegionServiceSupport
           - !Ref AWS::Region
           - EFS
-        pAvailabilityZones:
-          Fn::Join:
-            - ','
-            - !Ref pAvailabilityZones
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
         pRenderFarmAmi: !Ref pRenderFarmAmi
-        pOnDemandPercentage: !Ref pOnDemandPercentage
-        pRenderFarmMinCapacity: '1'
-        pRenderFarmDesiredCapacity: !Ref pRenderFarmDesiredCapacity
-        pRenderFarmMaxCapacity: !Ref pRenderFarmMaxCapacity
+        pTargetCapacity: !Ref pTargetCapacity
         pProjectName: !Ref pProjectName
         pEnvironment: !Ref pEnvironment
 

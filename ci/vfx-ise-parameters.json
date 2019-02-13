@@ -36,12 +36,8 @@
         "ParameterValue": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
     },
     {
-        "ParameterKey": "pRenderFarmDesiredCapacity",
+        "ParameterKey": "pTargetCapacity",
         "ParameterValue": "2"
-    },
-    {
-        "ParameterKey": "pRenderFarmMaxCapacity",
-        "ParameterValue": "6"
     },
     {
         "ParameterKey": "pLicenseServerInstanceType",

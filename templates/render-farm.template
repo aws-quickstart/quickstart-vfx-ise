@@ -7,7 +7,6 @@ Metadata:
       - Label:
           default: Region Configuration
         Parameters:
-          - pAvailabilityZones
           - pSupportsEfs
 
       - Label:
@@ -21,17 +20,9 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
-          - pOnDemandPercentage
-          - pRenderFarmMinCapacity
-          - pRenderFarmDesiredCapacity
-          - pRenderFarmMaxCapacity
+          - pTargetCapacity
 
 Parameters:
-  pAvailabilityZones:
-    Description: The list of Availability Zones to use for the subnets in the VPC.
-      This template uses two Availability Zones from your list and preserves the logical order you specify.
-    Type: List<AWS::EC2::AvailabilityZone::Name>
-
   pSupportsEfs:
     AllowedValues:
       - true
@@ -54,23 +45,8 @@ Parameters:
     Description: Which AMI do you want to use for Render Instances?
     Type: AWS::EC2::Image::Id
 
-  pOnDemandPercentage:
-    AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
-    ConstraintDescription: On-Demand Percentage should be between 0 and 100, inclusive
-    Default: 0
-    Description: The On-Demand percentage set for your Render Farm Compute Environment Instances.
-    Type: String
-
-  pRenderFarmMinCapacity:
-    Description: The minimum number of instances that can run in your auto scale group
-    Type: String
-
-  pRenderFarmDesiredCapacity:
-    Description: The desired capacity must be less than or equal to the maximum capacity
-    Type: String
-
-  pRenderFarmMaxCapacity:
-    Description: The maximum number of instances that you can run in your auto scale group
+  pTargetCapacity:
+    Description: The number of instances in the spot fleet
     Type: String
 
   pProjectName:
@@ -89,35 +65,35 @@ Parameters:
 Mappings:
   RegionMap:
     ap-northeast-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-northeast-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-south-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t2.small]
+      InstanceTypes: [t2.micro, t2.micro]
     ap-southeast-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ap-southeast-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     ca-central-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-central-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     eu-west-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     sa-east-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-east-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-east-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-gov-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-west-1:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
     us-west-2:
-      InstanceTypes: [InstanceType: t2.micro, InstanceType: t3.micro]
+      InstanceTypes: [t2.micro, t3.micro]
 
 Conditions:
   SupportsEfs: !Equals
@@ -128,6 +104,7 @@ Conditions:
     - Condition: SupportsEfs
 
 Resources:
+
   rRenderFarmSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -205,11 +182,24 @@ Resources:
       Roles:
         - !Ref rRenderFarmRole
 
+  rSpotFleetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - spotfleet.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetRole
+
   rRenderFarmLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub render-farm-${pEnvironment}
-      RetentionInDays: 7
+      RetentionInDays: 90
 
   rRenderFarmLaunchTemplateNoEfs:
     Condition: NoEfsSupport
@@ -280,7 +270,7 @@ Resources:
                 echo "${rRenderFarmEfs}:/ $EFS_DIRECTORY efs _netdev" >> /etc/fstab
                 mount -a -t efs defaults
             03_awslogs:
-              command: !Sub /tmp/awslog_init.sh
+              command: tmp/awslog_init.sh
     Properties:
       LaunchTemplateData:
         ImageId: !Ref pRenderFarmAmi
@@ -288,6 +278,15 @@ Resources:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: vfx-render-farm
+              - Key: Environment
+                Value: !Ref pEnvironment
+              - Key: Project
+                Value: !Ref pProjectName
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
@@ -296,51 +295,22 @@ Resources:
             yum install amazon-efs-utils -y
 
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource rRenderFarmLaunchTemplateEfs --region ${AWS::Region}
-            # Signal the status from cfn-init
-            /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource rRenderFarmAutoScalingGroup --region ${AWS::Region}
 
-  rRenderFarmAutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
+  rRenderFarmSpotFleet:
+    Type: AWS::EC2::SpotFleet
     Properties:
-      DesiredCapacity: !Ref pRenderFarmDesiredCapacity
-      MinSize: !Ref pRenderFarmMinCapacity
-      MaxSize: !Ref pRenderFarmMaxCapacity
-      MixedInstancesPolicy:
-        InstancesDistribution:
-          OnDemandPercentageAboveBaseCapacity: !Ref pOnDemandPercentage
-        LaunchTemplate:
-          LaunchTemplateSpecification:
-            LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
-            Version: 1
-          Overrides: !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]
-      AvailabilityZones:
-        - !Select [0, !Ref pAvailabilityZones]
-        - !Select [1, !Ref pAvailabilityZones]
-      VPCZoneIdentifier:
-        - !Ref pProdAppPrivateSubnetA
-        - !Ref pProdAppPrivateSubnetB
-      Tags:
-        - Key: Name
-          Value: vfx-render-farm
-          PropagateAtLaunch: true
-        - Key: Environment
-          Value: !Ref pEnvironment
-          PropagateAtLaunch: true
-        - Key: Project
-          Value: !Ref pProjectName
-          PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT5M'
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: 1
-        MaxBatchSize: 1
-        PauseTime: 'PT2M'
-        WaitOnResourceSignals: true
-      AutoScalingReplacingUpdate:
-        WillReplace: true
+      SpotFleetRequestConfigData:
+        IamFleetRole: !GetAtt rSpotFleetRole.Arn
+        TargetCapacity: !Ref pTargetCapacity
+        LaunchTemplateConfigs:
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]
+              Version: '1'
+            Overrides:
+              - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                SubnetId: !Ref pProdAppPrivateSubnetA
+              - InstanceType: !Select [1, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                SubnetId: !Ref pProdAppPrivateSubnetB
 
 Outputs:
   rRenderFarmSecurityGroup:
@@ -361,11 +331,11 @@ Outputs:
     Condition: SupportsEfs
     Value: !Ref rRenderFarmEfsSecurityGroup
 
-  rRenderFarmAutoScalingGroup:
-    Value: !Ref rRenderFarmAutoScalingGroup
-
   rRenderFarmLaunchTemplate:
     Value: !If
       - SupportsEfs
       - !Ref rRenderFarmLaunchTemplateEfs
       - !Ref rRenderFarmLaunchTemplateNoEfs
+
+  rRenderFarmSpotFleet:
+    Value: !Ref rRenderFarmSpotFleet
