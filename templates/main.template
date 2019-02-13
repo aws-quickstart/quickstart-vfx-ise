@@ -397,10 +397,6 @@ Resources:
           - RegionServiceSupport
           - !Ref AWS::Region
           - EFS
-        pAvailabilityZones:
-          Fn::Join:
-            - ','
-            - !Ref pAvailabilityZones
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB

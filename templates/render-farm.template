@@ -7,7 +7,6 @@ Metadata:
       - Label:
           default: Region Configuration
         Parameters:
-          - pAvailabilityZones
           - pSupportsEfs
 
       - Label:
@@ -24,11 +23,6 @@ Metadata:
           - pTargetCapacity
 
 Parameters:
-  pAvailabilityZones:
-    Description: The list of Availability Zones to use for the subnets in the VPC.
-      This template uses two Availability Zones from your list and preserves the logical order you specify.
-    Type: List<AWS::EC2::AvailabilityZone::Name>
-
   pSupportsEfs:
     AllowedValues:
       - true
@@ -205,8 +199,7 @@ Resources:
   rRenderFarmLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub render-farm-${pEnvironment}
-      RetentionInDays: 7
+      RetentionInDays: 90
 
   rRenderFarmLaunchTemplateNoEfs:
     Condition: NoEfsSupport
@@ -218,8 +211,6 @@ Resources:
           Name: !Ref rRenderFarmInstanceProfile
         SecurityGroupIds:
           - !Ref rRenderFarmSecurityGroup
-        Placement:
-          AvailabilityZone: !Ref pAvailabilityZones
         UserData:
           Fn::Base64: |
             #!/bin/bash -xe
@@ -319,7 +310,7 @@ Resources:
               - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
                 SubnetId: !Ref pProdAppPrivateSubnetA
               - InstanceType: !Select [1, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
-                SubnetId: pProdAppPrivateSubnetB
+                SubnetId: !Ref pProdAppPrivateSubnetB
 
 Outputs:
   rRenderFarmSecurityGroup:
@@ -345,3 +336,6 @@ Outputs:
       - SupportsEfs
       - !Ref rRenderFarmLaunchTemplateEfs
       - !Ref rRenderFarmLaunchTemplateNoEfs
+
+  rRenderFarmSpotFleet:
+    Value: !Ref rRenderFarmSpotFleet
