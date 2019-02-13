@@ -317,9 +317,9 @@ Resources:
               Version: '1'
             Overrides:
               - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
-                AvailabilityZone: !Select [0, !Ref pAvailabilityZones]
+                SubnetId: !Ref pProdAppPrivateSubnetA
               - InstanceType: !Select [1, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
-                AvailabilityZone: !Select [1, !Ref pAvailabilityZones]
+                SubnetId: pProdAppPrivateSubnetB
 
 Outputs:
   rRenderFarmSecurityGroup:
