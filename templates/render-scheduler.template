@@ -111,8 +111,7 @@ Resources:
   rRenderSchedulerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub render-scheduler-${pEnvironment}
-      RetentionInDays: 7
+      RetentionInDays: 90
 
   rRenderSchedulerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration

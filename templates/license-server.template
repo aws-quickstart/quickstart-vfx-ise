@@ -111,8 +111,7 @@ Resources:
   rLicenseServerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub license-server-${pEnvironment}
-      RetentionInDays: 7
+      RetentionInDays: 90
 
   rLicenseServerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -176,7 +175,7 @@ Resources:
             05_fstab:
               command: echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
             06_awslogs:
-                command: !Sub /tmp/awslog_init.sh
+                command: /tmp/awslog_init.sh
     Properties:
       AssociatePublicIpAddress: false
       ImageId: !Ref pLicenseServerAmi
