@@ -54,31 +54,9 @@ Parameters:
     Description: Which AMI do you want to use for Render Instances?
     Type: AWS::EC2::Image::Id
 
-  pOnDemandPercentage:
-    AllowedPattern: (?:\b|-)([0-9]{1,2}[0]?|100)\b
-    ConstraintDescription: On-Demand Percentage should be between 0 and 100, inclusive
-    Default: 0
-    Description: The On-Demand percentage set for your Render Farm Compute Environment Instances.
-    Type: String
-
-  pRenderFarmMinCapacity:
-    Description: The minimum number of instances that can run in your auto scale group
-    Default: 1
-    Type: String
-
-  pRenderFarmDesiredCapacity:
-    Description: The desired capacity must be less than or equal to the maximum capacity
-    Type: String
-    Default: 1
-
   pTargetCapacity:
     Description: The number of instances in the spot fleet
     Type: String
-
-  pRenderFarmMaxCapacity:
-    Description: The maximum number of instances that you can run in your auto scale group
-    Type: String
-    Default: 1
 
   pProjectName:
     Description: Project name

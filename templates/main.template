@@ -419,10 +419,7 @@ Resources:
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
         pRenderFarmAmi: !Ref pRenderFarmAmi
-        pOnDemandPercentage: !Ref pOnDemandPercentage
-        pRenderFarmMinCapacity: '1'
-        pRenderFarmDesiredCapacity: !Ref pRenderFarmDesiredCapacity
-        pRenderFarmMaxCapacity: !Ref pRenderFarmMaxCapacity
+        pTargetCapacity: !Ref pRenderFarmMaxCapacity
         pProjectName: !Ref pProjectName
         pEnvironment: !Ref pEnvironment
 
