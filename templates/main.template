@@ -29,7 +29,7 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
-          - pTargetCapacity
+          - pRenderFarmTargetCapacity
 
       - Label:
           default: License Server Configuration
@@ -44,8 +44,8 @@ Metadata:
         Parameters:
           - pRenderSchedulerInstanceType
           - pRenderSchedulerAmi
-          - pSchedulerDesiredCapacity
-          - pSchedulerMaxCapacity
+          - pRenderSchedulerDesiredCapacity
+          - pRenderSchedulerMaxCapacity
 
       - Label:
           default: Email and Environment Configuration
@@ -88,11 +88,44 @@ Metadata:
       pMgmtAppPrivateSubnetBCIDR:
         default: CIDR block of Management Application Subnet B (private)
 
-      pTargetCapacity:
-        default: Spot Fleet Capacity
+      pRenderFarmAmi:
+        default: Render Farm AMI
+
+      pRenderFarmTargetCapacity:
+        default: Capacity of Spot Fleet Instances
+
+      pLicenseServerInstanceType:
+        default: License Server Instance type
+
+      pLicenseServerAmi:
+        default: License Server AMI
+
+      pLicenseServerDesiredCapacity:
+        default: Desired capacity of License Server (deafault is 1)
+
+      pLicenseServerMaxCapacity:
+        default: Maximum capacity of License Server (deafault is 1)
+
+      pRenderSchedulerInstanceType:
+        default: Render Scheduler Instance type
+
+      pRenderSchedulerAmi:
+        default: Render Scheduler AMI
+
+      pRenderSchedulerDesiredCapacity:
+        default: Desired capacity of Render Scheduler (deafault is 1)
+
+      pRenderSchedulerMaxCapacity:
+        default: Maximum capacity of Render Scheduler (deafault is 1)
+
+      pProjectName:
+        default: Project Name
 
       pNotifyEmail:
         default: Notification Email Address
+
+      pEnvironment:
+        default: VFX Environment
 
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
@@ -167,7 +200,7 @@ Parameters:
     Description: The AMI for the Render Farm EC2 instances
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
-  pTargetCapacity:
+  pRenderFarmTargetCapacity:
     Default: 2
     Description: The number of instances in the spot fleet
     Type: String
@@ -202,12 +235,12 @@ Parameters:
     Description: The AMI for the Render Scheduler EC2 instance
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
-  pSchedulerDesiredCapacity:
+  pRenderSchedulerDesiredCapacity:
     Default: 1
     Description: The desired capacity must be less than or equal to the maximum capacity
     Type: String
 
-  pSchedulerMaxCapacity:
+  pRenderSchedulerMaxCapacity:
     Default: 1
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
@@ -220,7 +253,7 @@ Parameters:
 
   pProjectName:
     Default: MyProject
-    Description: Project name
+    Description: Project name to tag Render Farm instances
     Type: String
 
   pEnvironment:
@@ -405,7 +438,7 @@ Resources:
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
         pRenderFarmAmi: !Ref pRenderFarmAmi
-        pTargetCapacity: !Ref pTargetCapacity
+        pRenderFarmTargetCapacity: !Ref pRenderFarmTargetCapacity
         pProjectName: !Ref pProjectName
         pEnvironment: !Ref pEnvironment
 
@@ -446,9 +479,9 @@ Resources:
         pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
         pRenderSchedulerInstanceType: !Ref pRenderSchedulerInstanceType
         pRenderSchedulerAmi: !Ref pRenderSchedulerAmi
-        pSchedulerMinCapacity: '1'
-        pSchedulerDesiredCapacity: !Ref pSchedulerDesiredCapacity
-        pSchedulerMaxCapacity: !Ref pSchedulerMaxCapacity
+        pRenderSchedulerMinCapacity: '1'
+        pRenderSchedulerDesiredCapacity: !Ref pRenderSchedulerDesiredCapacity
+        pRenderSchedulerMaxCapacity: !Ref pRenderSchedulerMaxCapacity
         pEnvironment: !Ref pEnvironment
 
   SecurityGroupsHelperTemplate:

@@ -21,7 +21,7 @@ Metadata:
           default: Render Farm Instance Configuration
         Parameters:
           - pRenderFarmAmi
-          - pTargetCapacity
+          - pRenderFarmTargetCapacity
 
 Parameters:
   pAvailabilityZones:
@@ -51,7 +51,7 @@ Parameters:
     Description: Which AMI do you want to use for Render Instances?
     Type: AWS::EC2::Image::Id
 
-  pTargetCapacity:
+  pRenderFarmTargetCapacity:
     Description: The number of instances in the spot fleet
     Type: String
 
@@ -308,7 +308,7 @@ Resources:
       SpotFleetRequestConfigData:
         AllocationStrategy: 'diversified'
         IamFleetRole: !GetAtt rSpotFleetRole.Arn
-        TargetCapacity: !Ref pTargetCapacity
+        TargetCapacity: !Ref pRenderFarmTargetCapacity
         LaunchTemplateConfigs:
           - LaunchTemplateSpecification:
               LaunchTemplateId: !If [SupportsEfs, !Ref rRenderFarmLaunchTemplateEfs, !Ref rRenderFarmLaunchTemplateNoEfs]

@@ -21,9 +21,9 @@ Metadata:
         Parameters:
           - pRenderSchedulerInstanceType
           - pRenderSchedulerAmi
-          - pSchedulerMinCapacity
-          - pSchedulerDesiredCapacity
-          - pSchedulerMaxCapacity
+          - pRenderSchedulerMinCapacity
+          - pRenderSchedulerDesiredCapacity
+          - pRenderSchedulerMaxCapacity
 
 Parameters:
   pAvailabilityZones:
@@ -51,15 +51,15 @@ Parameters:
     Description: Which Render Scheduler AMI do you want to use?
     Type: AWS::EC2::Image::Id
 
-  pSchedulerMinCapacity:
+  pRenderSchedulerMinCapacity:
     Description: The minimum number of instances that can run in your auto scale group
     Type: String
 
-  pSchedulerDesiredCapacity:
+  pRenderSchedulerDesiredCapacity:
     Description: The desired capacity must be less than or equal to the maximum capacity
     Type: String
 
-  pSchedulerMaxCapacity:
+  pRenderSchedulerMaxCapacity:
     Description: The maximum number of instances that you can run in your auto scale group
     Type: String
 
@@ -209,9 +209,9 @@ Resources:
         - !Ref pMgmtAppPrivateSubnetA
         - !Ref pMgmtAppPrivateSubnetB
       LaunchConfigurationName: !Ref rRenderSchedulerLaunchConfiguration
-      MinSize: !Ref pSchedulerMinCapacity
-      DesiredCapacity: !Ref pSchedulerDesiredCapacity
-      MaxSize: !Ref pSchedulerMaxCapacity
+      MinSize: !Ref pRenderSchedulerMinCapacity
+      DesiredCapacity: !Ref pRenderSchedulerDesiredCapacity
+      MaxSize: !Ref pRenderSchedulerMaxCapacity
       HealthCheckType: EC2
       HealthCheckGracePeriod: 0
       Tags:
