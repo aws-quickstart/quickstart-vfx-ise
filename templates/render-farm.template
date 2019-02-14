@@ -7,6 +7,7 @@ Metadata:
       - Label:
           default: Region Configuration
         Parameters:
+          - pAvailabilityZones
           - pSupportsEfs
 
       - Label:
@@ -23,6 +24,11 @@ Metadata:
           - pTargetCapacity
 
 Parameters:
+  pAvailabilityZones:
+    Description: The list of Availability Zones to use for the subnets in the VPC.
+      This template uses two Availability Zones from your list and preserves the logical order you specify.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+
   pSupportsEfs:
     AllowedValues:
       - true
@@ -300,6 +306,7 @@ Resources:
     Type: AWS::EC2::SpotFleet
     Properties:
       SpotFleetRequestConfigData:
+        AllocationStrategy: 'diversified'
         IamFleetRole: !GetAtt rSpotFleetRole.Arn
         TargetCapacity: !Ref pTargetCapacity
         LaunchTemplateConfigs:
@@ -308,8 +315,10 @@ Resources:
               Version: '1'
             Overrides:
               - InstanceType: !Select [0, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                AvailabilityZone: !Select [0, !Ref pAvailabilityZones]
                 SubnetId: !Ref pProdAppPrivateSubnetA
               - InstanceType: !Select [1, !FindInMap [RegionMap, !Ref 'AWS::Region', InstanceTypes]]
+                AvailabilityZone: !Select [1, !Ref pAvailabilityZones]
                 SubnetId: !Ref pProdAppPrivateSubnetB
 
 Outputs:

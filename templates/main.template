@@ -393,6 +393,10 @@ Resources:
         !Sub https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/render-farm.template
       TimeoutInMinutes: 30
       Parameters:
+        pAvailabilityZones:
+          Fn::Join:
+            - ','
+            - !Ref pAvailabilityZones
         pSupportsEfs: !FindInMap
           - RegionServiceSupport
           - !Ref AWS::Region
