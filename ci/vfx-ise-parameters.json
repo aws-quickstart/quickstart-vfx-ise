@@ -32,6 +32,10 @@
         "ParameterValue": "10.10.96.0/21"
     },
     {
+        "ParameterKey": "pMgmtAppPrivateSubnetBCIDR",
+        "ParameterValue": "10.10.112.0/21"
+    },
+    {
         "ParameterKey": "pRenderFarmAmi",
         "ParameterValue": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
     },
