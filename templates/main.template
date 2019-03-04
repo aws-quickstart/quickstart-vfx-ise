@@ -10,14 +10,14 @@ Metadata:
           - pAvailabilityZones
 
       - Label:
-          default: Production VPC Network Configuration
+          default: Production VPC network configuration
         Parameters:
           - pProductionVpcCIDR
           - pProdAppPrivateSubnetACIDR
           - pProdAppPrivateSubnetBCIDR
 
       - Label:
-          default: Management VPC Network Configuration
+          default: Management VPC network configuration
         Parameters:
           - pManagementVpcCIDR
           - pManagementDMZSubnetACIDR
@@ -26,13 +26,13 @@ Metadata:
           - pMgmtAppPrivateSubnetBCIDR
 
       - Label:
-          default: Render Farm Instance Configuration
+          default: Render farm instance configuration
         Parameters:
           - pRenderFarmAmi
           - pRenderFarmTargetCapacity
 
       - Label:
-          default: License Server Configuration
+          default: License server configuration
         Parameters:
           - pLicenseServerInstanceType
           - pLicenseServerAmi
@@ -40,7 +40,7 @@ Metadata:
           - pLicenseServerMaxCapacity
 
       - Label:
-          default: Render Scheduler Configuration
+          default: Render scheduler configuration
         Parameters:
           - pRenderSchedulerInstanceType
           - pRenderSchedulerAmi
@@ -48,90 +48,90 @@ Metadata:
           - pRenderSchedulerMaxCapacity
 
       - Label:
-          default: Email and Environment Configuration
+          default: Email and environment configuration
         Parameters:
           - pNotifyEmail
           - pProjectName
           - pEnvironment
 
       - Label:
-          default: Quickstart Template Configuration
+          default: Quickstart template configuration
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
 
     ParameterLabels:
       pAvailabilityZones:
-        default: Select two Availability Zones
+        default: Availability Zones
 
       pProductionVpcCIDR:
-        default: Production VPC CIDR block
+        default: Production VPC CIDR
 
       pProdAppPrivateSubnetACIDR:
-        default: CIDR block of Production Application Subnet A (private)
+        default: Production VPC private subnet 1 CIDR
 
       pProdAppPrivateSubnetBCIDR:
-        default: CIDR block of Production Application Subnet B (private)
+        default: Production VPC private subnet 2 CIDR
 
       pManagementVpcCIDR:
-        default: Management VPC CIDR block
+        default: Management VPC CIDR
 
       pManagementDMZSubnetACIDR:
-        default: CIDR block of Management DMZ Subnet A (internet facing)
+        default: Management VPC public subnet 1 CIDR
 
       pManagementDMZSubnetBCIDR:
-        default: CIDR block of Management DMZ Subnet B (internet facing)
+        default: Management VPC public subnet 2 CIDR
 
       pMgmtAppPrivateSubnetACIDR:
-        default: CIDR block of Management Application Subnet A (private)
+        default: Management VPC private subnet 1 CIDR
 
       pMgmtAppPrivateSubnetBCIDR:
-        default: CIDR block of Management Application Subnet B (private)
+        default: Management VPC private subnet 2 CIDR
 
       pRenderFarmAmi:
-        default: Render Farm AMI
+        default: Render farm AMI
 
       pRenderFarmTargetCapacity:
-        default: Capacity of Spot Fleet Instances
+        default: Capacity of Spot Fleet instances
 
       pLicenseServerInstanceType:
-        default: License Server Instance type
+        default: License server instance type
 
       pLicenseServerAmi:
-        default: License Server AMI
+        default: License server AMI
 
       pLicenseServerDesiredCapacity:
-        default: Desired capacity of License Server (deafault is 1)
+        default: Desired capacity of license server
 
       pLicenseServerMaxCapacity:
-        default: Maximum capacity of License Server (deafault is 1)
+        default: Maximum capacity of license server
 
       pRenderSchedulerInstanceType:
-        default: Render Scheduler Instance type
+        default: Render scheduler instance type
 
       pRenderSchedulerAmi:
-        default: Render Scheduler AMI
+        default: Render scheduler AMI
 
       pRenderSchedulerDesiredCapacity:
-        default: Desired capacity of Render Scheduler (deafault is 1)
+        default: Desired capacity of render scheduler
 
       pRenderSchedulerMaxCapacity:
-        default: Maximum capacity of Render Scheduler (deafault is 1)
+        default: Maximum capacity of render scheduler
 
       pProjectName:
-        default: Project Name
+        default: Project name
 
       pNotifyEmail:
-        default: Notification Email Address
+        default: Notification email address
 
       pEnvironment:
-        default: VFX Environment
+        default: VFX environment
 
       QSS3BucketName:
-        default: Quick Start S3 Bucket Name
+        default: Quick Start S3 bucket name
 
       QSS3KeyPrefix:
-        default: Quick Start S3 Key Prefix
+        default: Quick Start S3 key prefix
 
 Parameters:
   pAvailabilityZones:
@@ -143,117 +143,120 @@ Parameters:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.100.0.0/16
-    Description: CIDR block for Production VPC
+    Description: The CIDR block for the production VPC.
     Type: String
 
   pProdAppPrivateSubnetACIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.100.0.0/19
-    Description: CIDR block of Production Application Subnet A (private)
+    Description: The CIDR block for the private subnet located in Availability Zone 1 of the production VPC.
     Type: String
 
   pProdAppPrivateSubnetBCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.100.32.0/19
-    Description: CIDR block of Production Application Subnet B (private)
+    Description: The CIDR block for the private subnet located in Availability Zone 2 of the production VPC.
     Type: String
 
   pManagementVpcCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.10.0.0/16
-    Description: CIDR block for Management VPC
+    Description: The CIDR block for the management VPC.
     Type: String
 
   pManagementDMZSubnetACIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.10.10.0/24
-    Description: CIDR block for Management DMZ AZ-1a subnet
+    Description: The CIDR block for the public (internet-facing) subnet located in Availability Zone 1 of the management VPC.
     Type: String
 
   pManagementDMZSubnetBCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.10.20.0/24
-    Description: CIDR block for Management DMZ AZ-1b subnet
+    Description: The CIDR block for the public (internet-facing) subnet located in Availability Zone 2 of the management VPC.
     Type: String
 
   pMgmtAppPrivateSubnetACIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.10.96.0/21
-    Description: CIDR block for Management Application AZ-1a subnet
+    Description: The CIDR block for the private subnet located in Availability Zone 1 of the management VPC.
     Type: String
 
   pMgmtAppPrivateSubnetBCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.10.112.0/21
-    Description: CIDR block for Management Application AZ-1b subnet
+    Description: The CIDR block for the private subnet located in Availability Zone 2 of the management VPC.
     Type: String
 
   pRenderFarmAmi:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The AMI for the Render Farm EC2 instances
+    Description: The Amazon Machine Image (AMI) for the operating system to be used for the Spot Fleet of EC2 burst render instances.
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
   pRenderFarmTargetCapacity:
     Default: 2
-    Description: The number of instances in the spot fleet
+    Description: The number of instances in the Spot Fleet.
     Type: String
 
   pLicenseServerInstanceType:
     Default: t2.micro
-    Description: Instance type for the license server
+    Description: The EC2 instance type for the license server.
     Type: String
 
   pLicenseServerAmi:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The AMI for the License Server EC2 instance
+    Description: The operating system AMI to be used for the license server instances.
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
   pLicenseServerDesiredCapacity:
     Default: 1
-    Description: The desired capacity must be less than or equal to the maximum capacity
+    Description: The number of license server instances that you want to run in the Auto Scaling group.
+      This number must be less than or equal to the maximum capacity you specify in the following parameter.
     Type: String
 
   pLicenseServerMaxCapacity:
     Default: 1
-    Description: The maximum number of instances that you can run in your auto scale group
+    Description: The maximum number of license server instances that you can run in the Auto Scaling group.
     Type: String
 
   pRenderSchedulerInstanceType:
     Default: t2.micro
-    Description: Instance type for the Render Scheduler
+    Description: The EC2 instance type for the render scheduler.
     Type: String
 
   pRenderSchedulerAmi:
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The AMI for the Render Scheduler EC2 instance
+    Description: The operating system AMI to be used for the render scheduler instances.
     Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
   pRenderSchedulerDesiredCapacity:
     Default: 1
-    Description: The desired capacity must be less than or equal to the maximum capacity
+    Description: The number of render scheduler instances that you want to run in the Auto Scaling group.
+      This number must be less than or equal to the maximum capacity you specify in the following parameter.
     Type: String
 
   pRenderSchedulerMaxCapacity:
     Default: 1
-    Description: The maximum number of instances that you can run in your auto scale group
+    Description: The maximum number of render scheduler instances that you can run in the Auto Scaling group.
     Type: String
 
   pNotifyEmail:
-    Default: ''
-    Description: Notification email address for security events (you will receive
-      a confirmation email)
+    AllowedPattern: (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
+    ConstraintDescription: Email address parameter must be in the form myemail@mail.com
+    Description: The email address that security event notifications should be sent to.
+      You will receive a confirmation email at this address.
     Type: String
 
   pProjectName:
     Default: MyProject
-    Description: Project name to tag Render Farm instances
+    Description: The project name to use for tagging render farm instances.
     Type: String
 
   pEnvironment:
@@ -262,28 +265,25 @@ Parameters:
       - TEST
       - PROD
     Default: DEV
-    Description: Environment (Dev, Test or Prod)
+    Description: The type of VFX environment to set up. You can specify DEV (development), TEST (test), or PROD (production).
     Type: String
 
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, periods (.), and hyphens (-). It cannot start or
-      end with a hyphen (-).
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters,
+      periods (.), and hyphens (-). It cannot start or end with a hyphen (-).
     Default: quickstart-render-compliance-is-s3artifactsbucket-1d7ta8294b64d
-    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
-      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-      It cannot start or end with a hyphen (-).
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers,
+      lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Type: String
 
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
-      uppercase letters, hyphens (-), and forward slash (/).
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase letters,
+      hyphens (-), and forward slash (/).
     Default: quickstart-vfx-ise/
-    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
-      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/).
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers,
+      lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
     Type: String
 
 Mappings:
