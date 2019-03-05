@@ -28,14 +28,12 @@ Metadata:
       - Label:
           default: Render farm instance configuration
         Parameters:
-          - pRenderFarmAmi
           - pRenderFarmTargetCapacity
 
       - Label:
           default: License server configuration
         Parameters:
           - pLicenseServerInstanceType
-          - pLicenseServerAmi
           - pLicenseServerDesiredCapacity
           - pLicenseServerMaxCapacity
 
@@ -43,7 +41,6 @@ Metadata:
           default: Render scheduler configuration
         Parameters:
           - pRenderSchedulerInstanceType
-          - pRenderSchedulerAmi
           - pRenderSchedulerDesiredCapacity
           - pRenderSchedulerMaxCapacity
 
@@ -88,17 +85,11 @@ Metadata:
       pMgmtAppPrivateSubnetBCIDR:
         default: Management VPC private subnet 2 CIDR
 
-      pRenderFarmAmi:
-        default: Render farm AMI
-
       pRenderFarmTargetCapacity:
         default: Capacity of Spot Fleet instances
 
       pLicenseServerInstanceType:
         default: License server instance type
-
-      pLicenseServerAmi:
-        default: License server AMI
 
       pLicenseServerDesiredCapacity:
         default: Desired capacity of license server
@@ -108,9 +99,6 @@ Metadata:
 
       pRenderSchedulerInstanceType:
         default: Render scheduler instance type
-
-      pRenderSchedulerAmi:
-        default: Render scheduler AMI
 
       pRenderSchedulerDesiredCapacity:
         default: Desired capacity of render scheduler
@@ -195,11 +183,6 @@ Parameters:
     Description: The CIDR block for the private subnet located in Availability Zone 2 of the management VPC.
     Type: String
 
-  pRenderFarmAmi:
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The Amazon Machine Image (AMI) for the operating system to be used for the Spot Fleet of EC2 burst render instances.
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-
   pRenderFarmTargetCapacity:
     Default: 2
     Description: The number of instances in the Spot Fleet.
@@ -209,11 +192,6 @@ Parameters:
     Default: t2.micro
     Description: The EC2 instance type for the license server.
     Type: String
-
-  pLicenseServerAmi:
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The operating system AMI to be used for the license server instances.
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
   pLicenseServerDesiredCapacity:
     Default: 1
@@ -230,11 +208,6 @@ Parameters:
     Default: t2.micro
     Description: The EC2 instance type for the render scheduler.
     Type: String
-
-  pRenderSchedulerAmi:
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: The operating system AMI to be used for the render scheduler instances.
-    Type:  AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
 
   pRenderSchedulerDesiredCapacity:
     Default: 1
@@ -322,6 +295,41 @@ Mappings:
       EFS: 'true'
     us-west-2:
       EFS: 'true'
+  AWSAMIRegionMap:
+    AMI:
+      AMZNLINUX2AMI: amzn2-ami-hvm-2.0.20190228-x86_64-gp2
+    eu-north-1:
+      AMZNLINUX2AMI: ami-244ac35a
+    ap-south-1:
+      AMZNLINUX2AMI: ami-03103e7ded4c02ef8
+    eu-west-3:
+      AMZNLINUX2AMI: ami-0e9073d7ac75f4491
+    eu-west-2:
+      AMZNLINUX2AMI: ami-07a5200f3fa9c33d3
+    eu-west-1:
+      AMZNLINUX2AMI: ami-02a39bdb8e8ee056a
+    ap-northeast-2:
+      AMZNLINUX2AMI: ami-045e355a6004a67c4
+    ap-northeast-1:
+      AMZNLINUX2AMI: ami-097473abce069b8e9
+    sa-east-1:
+      AMZNLINUX2AMI: ami-095a33e72f6bb89c3
+    ca-central-1:
+      AMZNLINUX2AMI: ami-05f9d71283317f5c9
+    ap-southeast-1:
+      AMZNLINUX2AMI: ami-00158b185c8cc09dc
+    ap-southeast-2:
+      AMZNLINUX2AMI: ami-0c3228fd049cdb151
+    eu-central-1:
+      AMZNLINUX2AMI: ami-07f1fbbff759e24dd
+    us-east-1:
+      AMZNLINUX2AMI: ami-02da3a138888ced85
+    us-east-2:
+      AMZNLINUX2AMI: ami-0de7daa7385332688
+    us-west-1:
+      AMZNLINUX2AMI: ami-09bfcadb25ee95bec
+    us-west-2:
+      AMZNLINUX2AMI: ami-095cd038eef3e5074
 
 Rules:
   VfxSupportRegionRule:
@@ -437,7 +445,7 @@ Resources:
         pProductionVPC: !GetAtt ProductionVpcTemplate.Outputs.rVPCProduction
         pProdAppPrivateSubnetA: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetA
         pProdAppPrivateSubnetB: !GetAtt ProductionVpcTemplate.Outputs.rProdAppPrivateSubnetB
-        pRenderFarmAmi: !Ref pRenderFarmAmi
+        pRenderFarmAmi: !FindInMap [AWSAMIRegionMap, !Ref 'AWS::Region', AMZNLINUX2AMI]
         pRenderFarmTargetCapacity: !Ref pRenderFarmTargetCapacity
         pProjectName: !Ref pProjectName
         pEnvironment: !Ref pEnvironment
@@ -457,7 +465,7 @@ Resources:
         pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
         pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
         pLicenseServerInstanceType: !Ref pLicenseServerInstanceType
-        pLicenseServerAmi: !Ref pLicenseServerAmi
+        pLicenseServerAmi: !FindInMap [AWSAMIRegionMap, !Ref 'AWS::Region', AMZNLINUX2AMI]
         pLicenseServerMinCapacity: '1'
         pLicenseServerDesiredCapacity: !Ref pLicenseServerDesiredCapacity
         pLicenseServerMaxCapacity: !Ref pLicenseServerMaxCapacity
@@ -478,7 +486,7 @@ Resources:
         pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
         pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
         pRenderSchedulerInstanceType: !Ref pRenderSchedulerInstanceType
-        pRenderSchedulerAmi: !Ref pRenderSchedulerAmi
+        pRenderSchedulerAmi: !FindInMap [AWSAMIRegionMap, !Ref 'AWS::Region', AMZNLINUX2AMI]
         pRenderSchedulerMinCapacity: '1'
         pRenderSchedulerDesiredCapacity: !Ref pRenderSchedulerDesiredCapacity
         pRenderSchedulerMaxCapacity: !Ref pRenderSchedulerMaxCapacity
