@@ -237,6 +237,8 @@ Resources:
 Outputs:
   rRenderSchedulerSecurityGroup:
     Value: !Ref rRenderSchedulerSecurityGroup
+    Export:
+      Name: eRenderSchedulerSecurityGroup
 
   rRenderSchedulerLaunchConfiguration:
     Value: !Ref rRenderSchedulerLaunchConfiguration

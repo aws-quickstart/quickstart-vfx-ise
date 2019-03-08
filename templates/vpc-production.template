@@ -40,7 +40,7 @@ Parameters:
     Type: List<AWS::EC2::AvailabilityZone::Name>
 
   pProductionVPCName:
-    Default: Production VPC
+    Default: Production-1-VPC
     Description: Production VPC Name
     Type: String
 
@@ -98,7 +98,7 @@ Resources:
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
-          Value: Production App Subnet A
+          Value: Production-1 App Subnet A
         - Key: Environment
           Value: !Ref pEnvironment
 
@@ -110,7 +110,7 @@ Resources:
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
-          Value: Production App Subnet B
+          Value: Production-1 App Subnet B
         - Key: Environment
           Value: !Ref pEnvironment
 
@@ -121,7 +121,7 @@ Resources:
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
-          Value: Production Private Route A
+          Value: Production-1 Private Route A
 
   rRouteTableProdPrivateB:
     Type: AWS::EC2::RouteTable
@@ -129,7 +129,7 @@ Resources:
       VpcId: !Ref rVPCProduction
       Tags:
         - Key: Name
-          Value: Production Private Route B
+          Value: Production-1 Private Route B
 
   rProdAppPrivateSubnetAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation

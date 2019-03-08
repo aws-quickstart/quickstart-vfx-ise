@@ -463,7 +463,6 @@ Resources:
             - !Ref pAvailabilityZones
         pManagementVPC: !GetAtt ManagementVpcTemplate.Outputs.rVPCManagement
         pMgmtAppPrivateSubnetA: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetA
-        pMgmtAppPrivateSubnetB: !GetAtt ManagementVpcTemplate.Outputs.rMgmtAppPrivateSubnetB
         pLicenseServerInstanceType: !Ref pLicenseServerInstanceType
         pLicenseServerAmi: !FindInMap [AWSAMIRegionMap, !Ref 'AWS::Region', AMZNLINUX2AMI]
         pLicenseServerMinCapacity: '1'

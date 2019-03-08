@@ -14,7 +14,6 @@ Metadata:
         Parameters:
           - pManagementVPC
           - pMgmtAppPrivateSubnetA
-          - pMgmtAppPrivateSubnetB
 
       - Label:
           default: License Server Configuration
@@ -37,10 +36,6 @@ Parameters:
 
   pMgmtAppPrivateSubnetA:
     Description: License Server Subnet A
-    Type: AWS::EC2::Subnet::Id
-
-  pMgmtAppPrivateSubnetB:
-    Description: Licene Server Subnet B
     Type: AWS::EC2::Subnet::Id
 
   pLicenseServerInstanceType:
@@ -97,6 +92,15 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: /
+      Policies:
+        - PolicyName: AttachENi
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachNetworkInterface
+                Resource: '*'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
         - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
@@ -112,6 +116,18 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: 90
+
+  rLicenseServerSecondaryEni:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      GroupSet:
+        - !Ref rLicenseServerSecurityGroup
+      SubnetId: !Ref pMgmtAppPrivateSubnetA
+      Tags:
+        - Key: Name
+          Value: vfx-secondary-eni
+        - Key: Environment
+          Value: !Ref pEnvironment
 
   rLicenseServerLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -174,7 +190,12 @@ Resources:
               command: mount /dev/xvdh /data
             05_fstab:
               command: echo '/dev/xvdh /data ext4 defaults,nofail 0 2' >> /etc/fstab
-            06_awslogs:
+            06_attach_eni:
+              command: !Sub |
+                #!/bin/bash -x
+                EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
+                aws ec2 attach-network-interface --network-interface-id ${rLicenseServerSecondaryEni} --instance-id $EC2_INSTANCE_ID --device-index 1 --region ${AWS::Region}
+            07_awslogs:
                 command: /tmp/awslog_init.sh
     Properties:
       AssociatePublicIpAddress: false
@@ -204,10 +225,8 @@ Resources:
     Properties:
       AvailabilityZones:
         - !Select [0, !Ref pAvailabilityZones]
-        - !Select [1, !Ref pAvailabilityZones]
       VPCZoneIdentifier:
         - !Ref pMgmtAppPrivateSubnetA
-        - !Ref pMgmtAppPrivateSubnetB
       LaunchConfigurationName: !Ref rLicenseServerLaunchConfiguration
       MinSize: !Ref pLicenseServerMinCapacity
       DesiredCapacity: !Ref pLicenseServerDesiredCapacity
@@ -237,6 +256,8 @@ Resources:
 Outputs:
   rLicenseServerSecurityGroup:
     Value: !Ref rLicenseServerSecurityGroup
+    Export:
+      Name: eLicenseServerSecurityGroup
 
   rLicenseServerInstanceRole:
     Value: !Ref rLicenseServerInstanceRole

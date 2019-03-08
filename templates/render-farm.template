@@ -94,8 +94,6 @@ Mappings:
       InstanceTypes: [t2.micro, t3.micro]
     us-east-2:
       InstanceTypes: [t2.micro, t3.micro]
-    us-gov-west-1:
-      InstanceTypes: [t2.micro, t3.micro]
     us-west-1:
       InstanceTypes: [t2.micro, t3.micro]
     us-west-2:
@@ -110,7 +108,6 @@ Conditions:
     - Condition: SupportsEfs
 
 Resources:
-
   rRenderFarmSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -148,6 +145,8 @@ Resources:
       FileSystemTags:
         - Key: Name
           Value: RenderFarmFs
+        - Key: Project
+          Value: !Ref pProjectName
 
   rRenderFarmEfsMountTarget0:
     Type: AWS::EFS::MountTarget

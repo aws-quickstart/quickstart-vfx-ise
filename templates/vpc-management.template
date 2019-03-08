@@ -392,12 +392,16 @@ Resources:
 Outputs:
   rVPCManagement:
     Value: !Ref rVPCManagement
+    Export:
+      Name: eVPCManagement
 
   pManagementVPCName:
     Value: !Ref pManagementVPCName
 
   pManagementVpcCIDR:
     Value: !Ref pManagementVpcCIDR
+    Export:
+      Name: eManagementVpcCIDR
 
   rManagementDMZSubnetA:
     Value: !Ref rManagementDMZSubnetA
@@ -422,9 +426,13 @@ Outputs:
 
   rRouteTableMgmtPrivateA:
     Value: !Ref rRouteTableMgmtPrivateA
+    Export:
+      Name: eRouteTableMgmtPrivateA
 
   rRouteTableMgmtPrivateB:
     Value: !Ref rRouteTableMgmtPrivateB
+    Export:
+      Name: eRouteTableMgmtPrivateB
 
   rManagementVpcFlowLogGroup:
     Value: !Ref rManagementVpcFlowLogGroup

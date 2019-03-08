@@ -61,7 +61,7 @@ Resources:
       VpcId: !Ref pManagementVPC
       Tags:
         - Key: Name
-          Value: vpc-peer-prod-mgmt
+          Value: vpc-peer-1-prod-mgmt
         - Key: Environment
           Value: !Ref pEnvironment
 
