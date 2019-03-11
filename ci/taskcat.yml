@@ -1,6 +1,6 @@
 global:
   marketplace-ami: false
-  owner: aws-uk-sa-builders@amazon.com
+  owner: aws-uk-sa-builders-pub@amazon.com
   qsname: quickstart-vfx-ise
   regions:
     - ap-northeast-1
