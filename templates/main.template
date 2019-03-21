@@ -245,7 +245,7 @@ Parameters:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters,
       periods (.), and hyphens (-). It cannot start or end with a hyphen (-).
-    Default: quickstart-render-compliance-is-s3artifactsbucket-1d7ta8294b64d
+    Default: aws-quickstart
     Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers,
       lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Type: String
