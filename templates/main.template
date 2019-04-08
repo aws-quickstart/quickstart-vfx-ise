@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Creates AWS infrastructure to deploy VFX render application. (qp-1oslqr42h) (uksb-1pbas8342)
+Description: Creates AWS infrastructure to deploy VFX render application. (qs-1pfpljf3j) (uksb-1pbas8342)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
