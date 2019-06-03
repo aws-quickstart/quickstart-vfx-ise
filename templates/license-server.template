@@ -161,29 +161,13 @@ Resources:
               mode: '755'
           commands:
             01_check_data:
-              command: !Sub |
-                #!/bin/bash -x
-                EC2_INSTANCE_ID=$(curl -s http://instance-data/latest/meta-data/instance-id)
-
-                # Volume /dev/sdh (which will get created as /dev/xvdh on Amazon Linux)
-                DATA_STATE="unknown"
-                until [ "${!DATA_STATE}" == "attached" ]; do
-                  DATA_STATE=$(aws ec2 describe-volumes \
-                    --region ${AWS::Region} \
-                    --filters \
-                      Name=attachment.instance-id,Values=${!EC2_INSTANCE_ID} \
-                      Name=attachment.device,Values=/dev/sdh \
-                    --query Volumes[].Attachments[].State \
-                    --output text)
+              command: |
+                while [ ! -e /dev/xvdh ]; do
+                  udevadm trigger -y '*nvme*'
                   sleep 5
                 done
             02_mkfs:
-              command: |
-                #!/bin/bash -x
-                # Format /dev/xvdh if it does not contain a partition yet
-                if [ "$(file -b -s /dev/xvdh)" == "data" ];
-                  then mkfs -t ext4 /dev/xvdh
-                fi
+              command: mkfs -t ext4 /dev/xvdh
             03_mkdir:
               command: mkdir -p /data
             04_mount:
@@ -203,7 +187,7 @@ Resources:
       IamInstanceProfile: !Ref rLicenseServerInstanceProfile
       InstanceType: !Ref pLicenseServerInstanceType
       BlockDeviceMappings:
-        - DeviceName: /dev/sdh
+        - DeviceName: /dev/xvdh
           Ebs:
             VolumeSize: 10
             VolumeType: gp2
