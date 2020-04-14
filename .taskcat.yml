@@ -1,0 +1,49 @@
+project:
+  name: quickstart-vfx-ise
+  owner: aws-uk-sa-builders-pub@amazon.com
+  regions:
+    - ap-northeast-1
+    - ap-northeast-2
+    - ap-southeast-1
+    - ap-southeast-2
+    - ca-central-1
+    - eu-central-1
+    - eu-west-1
+    - eu-west-2
+    - sa-east-1
+    - us-east-1
+    - us-east-2
+    - us-west-1
+    - us-west-2
+tests:
+  quickstart-vfx-main:
+    parameters:
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
+      pAvailabilityZones: $[taskcat_genaz_2]
+      pEnvironment: DEV
+      pLicenseServerDesiredCapacity: '1'
+      pLicenseServerInstanceType: t2.micro
+      pLicenseServerMaxCapacity: '1'
+      pManagementDMZSubnetACIDR: 10.10.10.0/24
+      pManagementDMZSubnetBCIDR: 10.10.20.0/24
+      pManagementVpcCIDR: 10.10.0.0/16
+      pMgmtAppPrivateSubnetACIDR: 10.10.96.0/21
+      pMgmtAppPrivateSubnetBCIDR: 10.10.112.0/21
+      pNotifyEmail: distlist@example.org
+      pProdAppPrivateSubnetACIDR: 10.100.0.0/19
+      pProdAppPrivateSubnetBCIDR: 10.100.32.0/19
+      pProductionVpcCIDR: 10.100.0.0/16
+      pProjectName: MyProject
+      pRenderFarmTargetCapacity: '2'
+      pRenderSchedulerDesiredCapacity: '1'
+      pRenderSchedulerInstanceType: t2.micro
+      pRenderSchedulerMaxCapacity: '1'
+    regions:
+      - ap-northeast-1
+      - ap-southeast-2
+      - eu-central-1
+      - eu-west-1
+      - us-east-1
+      - us-west-2
+    template: ./templates/main.template
